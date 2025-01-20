@@ -32,12 +32,18 @@ class Machine:
     def get_pair(self, task):
         return f'I,S,F:({task.task_index},{task.started},{task.finished})'
 
-    def has_no_overlapping_intervals(self):        
+    def has_no_overlapping_intervals(self, is_letsa=True):        
         # Check for overlapping intervals
         for i in range(1, len(self.intervals)):
-            if self.intervals[i-1].started < self.intervals[i].finished:
-                return "There are overlapping intervals, e.g. {0} vs {1}".format(self.get_pair(self.intervals[i]), self.get_pair(self.intervals[i-1]) )
-        return "No overlapping intervals"
+            if is_letsa:
+                if self.intervals[i-1].started < self.intervals[i].finished:
+                        # return "There are overlapping intervals, e.g. {0} vs {1}".format(self.get_pair(self.intervals[i]), self.get_pair(self.intervals[i-1]) )
+                    return False
+            elif self.intervals[i-1].finished > self.intervals[i].started:
+                        # return "There are overlapping intervals, e.g. {0} vs {1}".format(self.get_pair(self.intervals[i]), self.get_pair(self.intervals[i-1]) )
+                    return False
+        # return "No overlapping intervals"
+        return True
 
     def is_sorted(self):
         if all(self.intervals[i].started >= self.intervals[i + 1].finished for i in range(len(self.intervals) - 1)):

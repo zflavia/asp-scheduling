@@ -107,23 +107,8 @@ def compute_paths(tasks: List[Task], task: Task, path, duration, visited):
     for _, index_subtask in enumerate(task.children):
         compute_paths(tasks, tasks[index_subtask], path, duration, visited)
         path.pop()
-#             visited[index_subtask] = False
 
 def letsa(tasks: List[Task], action_mask: np.array, feasible_tasks, visited, max_deadline):
-    # start_task_index = feasible_tasks.get()
-    # global critical_path
-    # critical_path = ([], 0)
-    # # 4.1 For each operation in the feasible list formulate all possible network paths.
-    # compute_paths(tasks, tasks[start_task_index], [], 0, visited)
-    # print('Length of critical path', critical_path[1])
-    # for i in range(len(critical_path[0])):
-    #     print('Task_index:', critical_path[0][i], 'Task_id in BOM: ', tasks[critical_path[0][i]].task_id, ' Quantity: ', tasks[critical_path[0][i]].quantity, ' Runtime: ', tasks[critical_path[0][i]].max_execution_times_setup)
-
-    #start_task_index = feasible_tasks.get()
-    #global critical_path
-    #critical_path = ([], 0)
-    # 4.1 For each operation in the feasible list formulate all possible network paths.
-    #compute_paths(tasks, tasks[start_task_index], [], 0, visited)
     global critical_path
     critical_path = ([], 0)
     length = len(feasible_tasks)
@@ -132,6 +117,7 @@ def letsa(tasks: List[Task], action_mask: np.array, feasible_tasks, visited, max
     max_path_length_delete_index = 0
     compute_paths(tasks, tasks[max_path_length_task_index], [], 0, visited)
     max_length_critical_path = (critical_path[0].copy(), critical_path[1])
+    
     for i in range(len(feasible_tasks)):
         critical_path = ([], 0)
         compute_paths(tasks, tasks[feasible_tasks[i]], [], 0, visited)
@@ -159,6 +145,12 @@ def letsa(tasks: List[Task], action_mask: np.array, feasible_tasks, visited, max
         parent_start_task_index = tasks[max_path_length_task_index].parent_index
         if parent_start_task_index and tasks[parent_start_task_index].done and tasks[parent_start_task_index].started < completion_time:
             completion_time = tasks[parent_start_task_index].started # - EPSILON
+        # else:
+        #     print('Else branch', parent_start_task_index, tasks[parent_start_task_index].done, tasks[parent_start_task_index].started, completion_time)
+        # if tasks[parent_start_task_index].started > completion_time:
+        #     print('parent_start_task_index', parent_start_task_index, 'Completion time:', completion_time, 'Start time:', tasks[parent_start_task_index].started)
+
+
     # 4.5 Compute the starting time based on the available machines that can produce the operation Jc
     # 4.6 Schedule operation Jc at the latest available starting time Sc on the corresponding machine
 
@@ -172,6 +164,10 @@ def letsa(tasks: List[Task], action_mask: np.array, feasible_tasks, visited, max
     for _, sub_task_index in enumerate(tasks[max_path_length_task_index].children):
         if not tasks[sub_task_index].done:
             feasible_tasks.append(sub_task_index)
+    print('Task: ', tasks[max_path_length_task_index].task_id, ' completion_time: ', completion_time)
+    print('FEASIBLE TASKS: ')
+    for i in range(len(feasible_tasks)):
+        print(tasks[feasible_tasks[i]].task_id, tasks[tasks[feasible_tasks[i]].parent_index].task_id, tasks[tasks[feasible_tasks[i]].parent_index].started)
     return max_path_length_task_index, int(completion_time)
 
 

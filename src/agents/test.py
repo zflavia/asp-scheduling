@@ -57,7 +57,7 @@ def get_action(env, model, heuristic_id: str, heuristic_agent: Union[HeuristicSe
         action_mode = 'heuristic'
         tasks = env.tasks
         task_mask = mask
-        #  init values for LETSA heuristic
+        # init values for LETSA heuristic
         # critical_path is assigned to [] at every while iteration
         if heuristic_id == 'LETSA':
             selected_action, completion_time = heuristic_agent(tasks, task_mask, heuristic_id, feasible_tasks, visited, max_deadline)
@@ -91,16 +91,12 @@ def run_episode(env, model, heuristic_id: Union[str, None], handler: EvaluationH
     feasible_tasks = deque()
     visited = dict()
     max_deadline = -1
-    print('length of tasks ', len(env.tasks))
     for task in env.tasks:
-        print(task.parent_index)
         if not task.parent_index:
             feasible_tasks.append(task.task_index)
-            print('adaug in deque ', task.task_index)
         if max_deadline < task.deadline:
             max_deadline = task.deadline
-        print(task.str_setup_info())
-
+        # print(task.str_setup_info())
 
     # run agent on environment and collect rewards until done
     steps = 0
@@ -119,22 +115,6 @@ def run_episode(env, model, heuristic_id: Union[str, None], handler: EvaluationH
 
         total_reward += b[1]
         done = b[2]
-    print(env.intervals_info())
-    # else:
-    #     while not feasible_tasks.empty():
-    #         steps += 1
-    #         # getting the index of the task to be scheduled and the completion time
-    #         action, action_mode, completion_time = get_action(env, model, heuristic_id, heuristic_agent, sp_type, feasible_tasks, visited, max_deadline)
-    #         # schedule the task and get the reward
-    #         b = env.step(action=0, action_mode=action_mode, task_idx=action, completion_time=completion_time)
-    #         total_reward += b[1]
-    #          # # 4.8 Add all operations Ji such that di = Jc, to the feasible list.
-    #         # # Also check is the operation was not added in the list
-    #         # # Priority is given to the predecessor in the critical path while updating the list of feasible operations
-    #         for _, sub_task_index in enumerate(env.tasks[action].children):
-    #             if not env.tasks[sub_task_index].done:
-    #                 feasible_tasks.put(sub_task_index)
-
     # store episode in object
     mean_reward = total_reward / steps
     if sp_type == 'asp' and action_mode == 'heuristic' and heuristic_id == 'LETSA':
@@ -242,15 +222,14 @@ def test_model(env_config: Dict, data: List[List[Task]], logger: Logger, plot: b
 
         run_episode(environment, model, heuristic_id, evaluation_handler, env_config['sp_type'])
         schedule_info = ''
-        routine_info = ''
         for task in environment.tasks:
             schedule_info += task.str_schedule_info_simple() + '\n'
-            # routine_info += task.str_routine_info() + '\\\\ \n'
 
         # uncomment this when testing and not just training
         print(heuristic_id)
         print(schedule_info)
-        # print(routine_info)
+        is_letsa = heuristic_id == 'LETSA'
+        print('Is the schedule valid? Answer: ', environment.is_asp_schedule_valid(is_letsa=is_letsa))
 
 
     #  do not plot results
@@ -354,5 +333,4 @@ def main(external_config=None):
 
 if __name__ == '__main__':
     start_time = datetime.now()
-
     main()
