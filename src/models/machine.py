@@ -11,12 +11,6 @@ class Machine:
     def add_last_interval(self, task):
         self.intervals.append(task)
 
-    def get_duration(self, task):
-        return self.tasks[task]
-
-    def get_tasks_len(self):
-        return len(self.tasks)
-
     def get_int_len(self):
         return len(self.intervals)
 
@@ -32,7 +26,10 @@ class Machine:
     def get_pair(self, task):
         return f'I,S,F:({task.task_index},{task.started},{task.finished})'
 
-    def has_no_overlapping_intervals(self, is_letsa=True):        
+    def get_total_occupancy_duration(self):
+        return sum([task.finished - task.started for task in self.intervals])
+
+    def has_no_overlapping_intervals(self, is_letsa=True):
         # Check for overlapping intervals
         for i in range(1, len(self.intervals)):
             if is_letsa:

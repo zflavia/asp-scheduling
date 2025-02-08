@@ -87,16 +87,28 @@ class Task:
         self.setup_times = setup_times
         self.setup_time = setup_time
         self.execution_times = execution_times
+        self.execution_times_setup: Dict[int, int] = {}
+        if task_index == 0:
+            print('machines', self.machines)
         if should_multiply_quantity_to_execution_times == True:
             self.max_execution_times_setup = 0
+            self.min_execution_times_setup = 1000000000
             self.average_execution_times_setup = 0
             for machine_id in self.execution_times:
                 self.execution_times[machine_id] *= self.quantity
-                if self.execution_times[machine_id]+self.setup_times[machine_id]>self.max_execution_times_setup:
-                    self.max_execution_times_setup = self.execution_times[machine_id]+self.setup_times[machine_id]
-                self.average_execution_times_setup += self.execution_times[machine_id]+self.setup_times[machine_id]
+                self.execution_times_setup[machine_id] = self.execution_times[machine_id] + self.setup_times[machine_id]
+                if self.execution_times_setup[machine_id]>self.max_execution_times_setup:
+                    self.max_execution_times_setup = self.execution_times_setup[machine_id]
+                if self.execution_times_setup[machine_id]<self.min_execution_times_setup:
+                    self.min_execution_times_setup = self.execution_times_setup[machine_id]
+                self.average_execution_times_setup += self.execution_times_setup[machine_id]
+                if task_index == 0:
+                    print('max_execution_times_setup', self.max_execution_times_setup, 'min_execution_times_setup', self.min_execution_times_setup, 'average_execution_times_setup', self.average_execution_times_setup, 'quantity', self.quantity)
+
             self.runtime = int(runtime * quantity)  # max execution time (without setup)
             self.average_execution_times_setup /= len(self.execution_times)
+
+
 
 
     def __str__(self) -> str:

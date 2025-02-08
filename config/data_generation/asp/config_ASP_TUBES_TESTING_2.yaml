@@ -33,4 +33,4 @@ num_similar_instances: 0
 # (0) [bool] If true, the execution/processing times of the tasks will be multiplied by the quantity
 should_multiply_quantity_to_execution_times: True
 # (O) [string] Load the bom input files from this input directory
-input_directory: /Users/i564702/Documents/school/schlaby-asp/data/own_data/ASP_TUBES_2
+input_directory: /Users/i564702/Documents/personal/schlaby-asp/data/own_data/ASP_TUBES_2
