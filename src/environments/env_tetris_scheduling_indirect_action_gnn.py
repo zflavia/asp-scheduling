@@ -178,6 +178,8 @@ class IndirectActionEnvGNN(Env):
         aux_list_number_of_operations_executable_on_machines = [
              x / self.num_operations for x in aux_list_number_of_operations_executable_on_machines
         ]
+
+
         aux_list_mach_features = [aux_list_last_operation_completion_time, aux_list_number_of_operations_executable_on_machines, aux_list_utilization_percentage ]
 
         print('before self.heteroData[machine].x', self.heteroData['machine'].x)
@@ -196,6 +198,8 @@ class IndirectActionEnvGNN(Env):
         print ('self.heteroData[operation].x', self.heteroData['operation'].x)
 
         aux_list_features.append([aux_list_op_mach_processing_times, aux_list_op_mach_processing_time_ratios_a, aux_list_op_mach_processing_time_ratios_b])
+        aux_list_features_flat = [item for sublist in aux_list_features for item in sublist]
+
 
         # print('before self.heteroData[operation, exec, machine].edge_index', self.heteroData['operation', 'exec', 'machine'].edge_index)
         self.heteroData['operation', 'prec', 'operation'].edge_index = torch.LongTensor(aux_list_op).T
@@ -205,14 +209,14 @@ class IndirectActionEnvGNN(Env):
         self.heteroData['operation', 'exec', 'machine'].edge_index = torch.LongTensor(aux_list_mach).T
         print('self.heteroData[operation, exec, machine].edge_index', self.heteroData['operation', 'exec', 'machine'].edge_index)
         # print('before self.heteroData[operation, exec, machine].edge_attr', self.heteroData['operation', 'exec', 'machine'].edge_attr)
-        self.heteroData['operation', 'exec', 'machine'].edge_attr = torch.Tensor(aux_list_features).T
+        self.heteroData['operation', 'exec', 'machine'].edge_attr = torch.Tensor(aux_list_features_flat).T
         print('self.heteroData[operation, exec, machine].edge_attr', self.heteroData['operation', 'exec', 'machine'].edge_attr)
 
         # print('before self.heteroData[machine, exec, operation].edge_index', self.heteroData['machine', 'exec', 'operation'].edge_index)
         self.heteroData['machine', 'exec', 'operation'].edge_index = torch.LongTensor(aux_list_mach_2).T
         print('self.heteroData[machine, exec, operation].edge_index', self.heteroData['machine', 'exec', 'operation'].edge_index)
         # print('before self.heteroData[machine, exec, operation].edge_attr', self.heteroData['machine', 'exec', 'operation'].edge_attr)
-        self.heteroData['machine', 'exec', 'operation'].edge_attr = torch.Tensor(aux_list_features).T
+        self.heteroData['machine', 'exec', 'operation'].edge_attr = torch.Tensor(aux_list_features_flat).T
         print('self.heteroData[machine, exec, operation].edge_attr', self.heteroData['machine', 'exec', 'operation'].edge_attr)
 
     #
