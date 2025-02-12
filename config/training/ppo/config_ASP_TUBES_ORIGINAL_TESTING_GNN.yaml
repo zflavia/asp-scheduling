@@ -7,10 +7,10 @@ sp_type: asp
 # (R)   [String]  RL algorithm you want to use - This template is for PPO
 algorithm: ppo
 # (R)   [string]  Path to the file with generated data that to be used for training
-instances_file: asp/config_ASP_TUBES_TESTING.pkl
+instances_file: asp/config_ASP_TUBES_TESTING_ORIGINAL.pkl
 # (O)   [string]  The finished model is saved under this name. Alternatively set to <automatic>, then it will be
                   # replaced with the current DayMonthYearHourMinute
-saved_model_name: ASP_TUBES_ORIGINAL_SAME_AS_TESTING_GNN
+saved_model_name: ASP_TUBES_TESTING_ORIGINAL_GNN
 # (R)   [int]     Seed for all pseudo random generators (random, numpy, torch)
 seed: 0
 # (O)   [bool]    Bool, if the train-test-split of instances should remain the same (1111) and be independent of the
@@ -19,7 +19,7 @@ seed: 0
 overwrite_split_seed: False
 # (R)   [string]  Set an individual description that you can identify this training run more easily later on.
                   # This will be used in "weights and biases" as well
-config_description: ASP_TUBES_GNN
+config_description: ASP_TUBES_TESTING_ORIGINAL_GNN
 # (O)   [string]  Set a directory where you want to save the agent model
 experiment_save_path: models
 # (O)   [int]:    Wandb mode choose: choose from [0: no wandb, 1: wandb_offline, 2: wandb_online]

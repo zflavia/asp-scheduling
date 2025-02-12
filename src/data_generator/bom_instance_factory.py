@@ -21,20 +21,23 @@ from typing import List
 from src.data_generator.task import Task
 from src.data_generator.sp_factory import SPFactory
 
-def dfs_bom(node, sorted_top, tasks_mapping_ids, deadline, job_index, filename, quantity, should_multiply_quantity_to_execution_times):
+def dfs_bom(node, sorted_top, tasks_mapping_ids, deadline, job_index, filename, quantity, should_multiply_quantity_to_execution_times, num_machines = 50):
     for child in node.get('children', []):
-        dfs_bom(child, sorted_top, tasks_mapping_ids, deadline - 1, job_index, filename, quantity * node['quantity'], should_multiply_quantity_to_execution_times)
-    machines = [0] * 50
+        dfs_bom(child, sorted_top, tasks_mapping_ids, deadline - 1, job_index, filename, quantity * node['quantity'], should_multiply_quantity_to_execution_times, num_machines)
+    machines = [0] * num_machines
     execution_times = {}
     setup_times = {}
     max_runtime = 0
     max_setup = 0
     average_runtime = 0
+# TODO: machine['id'] - 1
+    # DONE see below
     for machine in node.get('machines', []):
-        machines[machine['id']] = 1
-        execution_times[machine['id']] = machine['execution_time']
+        machine_id = machine['id'] - 1
+        machines[machine_id ] = 1
+        execution_times[machine_id] = machine['execution_time']
         max_runtime = machine['execution_time'] if max_runtime < machine['execution_time'] else max_runtime
-        setup_times[machine['id']] = machine['setup_time']
+        setup_times[machine_id] = machine['setup_time']
         max_setup =  machine['setup_time'] if max_setup < machine['setup_time'] else max_setup
         average_runtime = average_runtime + machine['execution_time']
     average_runtime = int(average_runtime / len(node.get('machines', [])))
@@ -88,11 +91,13 @@ def load_bom_files(input_directory, similar_instances_number, should_modify_inst
             with open(os.path.join(input_directory, file), 'r') as f:
                 bom_job = json.load(f)
                 deadline = get_job_deadline(bom_job['start_date'], bom_job['delivery_date'])
+                num_machines = len(bom_job['metainfo']['machines_list'])
                 tasks_mapping_ids = dict()
                 sorted_top: List[Task] = []
                 dfs_bom(bom_job, sorted_top, tasks_mapping_ids, deadline,
                         0, filename=file, quantity=1,
-                        should_multiply_quantity_to_execution_times=should_multiply_quantity_to_execution_times
+                        should_multiply_quantity_to_execution_times=should_multiply_quantity_to_execution_times,
+                        num_machines=num_machines
                 )
                 for task in sorted_top:
                     if task.parent_index:
@@ -112,17 +117,20 @@ def load_bom_files(input_directory, similar_instances_number, should_modify_inst
                     if machine_op_type == 0:
                         if task.machines[machine_id] == 0:
                             task.machines[machine_id] = 1
-                            task.execution_times[machine_id] = random.randint(10, task.runtime)
+                            task.execution_times[machine_id] = random.randint(10, task.runtime) * task.quantity
                             task.setup_times[machine_id] = random.randint(10, task.setup_time)
+                            task.execution_times_setup[machine_id] = task.execution_times[machine_id] + task.setup_times[machine_id]
                     else:
                         task.execution_times[machine_id] = random.randint(10, task.runtime)
                         task.setup_times[machine_id] = random.randint(10, task.setup_time)
-                    max_runtime = max(max_runtime, task.execution_times[machine_id])
-                    max_setup = max(max_setup, task.setup_times[machine_id])
-                    average_runtime += task.execution_times[machine_id]
-                 task.runtime = max_runtime
-                 task.average_runtime = int(average_runtime / len(task.machines))
-                 task.setup_time = max_setup
+                        task.execution_times_setup[machine_id] = task.execution_times[machine_id] + task.setup_times[machine_id]
+                 max_runtime = max(max_runtime, task.execution_times[machine_id])
+                 max_setup = max(max_setup, task.setup_times[machine_id])
+                 average_runtime += task.execution_times[machine_id]
+            task.runtime = max_runtime
+            task.average_runtime = int(average_runtime / len(task.machines))
+            task.setup_time = max_setup
+            task.recalculate_execution_times_setup()
 
         for i in range(similar_instances_number):
             instance_index = random.randint(0, original_list_length - 1)
@@ -139,17 +147,20 @@ def load_bom_files(input_directory, similar_instances_number, should_modify_inst
                            task.machines[machine_id] = 1
                            task.execution_times[machine_id] = random.randint(10, task.runtime)
                            task.setup_times[machine_id] = random.randint(10, task.setup_time)
+                           task.execution_times_setup[machine_id] = task.execution_times[machine_id] + task.setup_times[machine_id]
                    else:
                         task.execution_times[machine_id] = random.randint(10, task.runtime)
                         task.setup_times[machine_id] = random.randint(10, task.setup_time)
+                        task.execution_times_setup[machine_id] = task.execution_times[machine_id] + task.setup_times[machine_id]
                    max_runtime = max(max_runtime, task.execution_times[machine_id])
                    max_setup = max(max_setup, task.setup_times[machine_id])
                    average_runtime += task.execution_times[machine_id]
                 task.runtime = max_runtime
                 task.average_runtime = int(average_runtime / len(task.machines))
                 task.setup_time = max_setup
+                task.recalculate_execution_times_setup()
 
-            instance_list.append(new_instance)
+        instance_list.append(new_instance)
 
     return instance_list
 

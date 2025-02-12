@@ -74,6 +74,7 @@ class Task:
 
         # protected - optional
         self._n_machines = _n_machines
+        print('self._n_machines', self._n_machines)
         self._n_tools = _n_tools
         self._feasible_machine_from_instance_init = _feasible_machine_from_instance_init
         self._feasible_order_index_from_instance_init = _feasible_order_index_from_instance_init
@@ -88,8 +89,6 @@ class Task:
         self.setup_time = setup_time
         self.execution_times = execution_times
         self.execution_times_setup: Dict[int, int] = {}
-        if task_index == 0:
-            print('machines', self.machines)
         if should_multiply_quantity_to_execution_times == True:
             self.max_execution_times_setup = 0
             self.min_execution_times_setup = 1000000000
@@ -102,14 +101,25 @@ class Task:
                 if self.execution_times_setup[machine_id]<self.min_execution_times_setup:
                     self.min_execution_times_setup = self.execution_times_setup[machine_id]
                 self.average_execution_times_setup += self.execution_times_setup[machine_id]
-                if task_index == 0:
-                    print('max_execution_times_setup', self.max_execution_times_setup, 'min_execution_times_setup', self.min_execution_times_setup, 'average_execution_times_setup', self.average_execution_times_setup, 'quantity', self.quantity)
 
             self.runtime = int(runtime * quantity)  # max execution time (without setup)
-            self.average_execution_times_setup /= len(self.execution_times)
+            self.average_execution_times_setup /= len(self.execution_times_setup)
 
 
+    def recalculate_execution_times_setup(self):
+        self.max_execution_times_setup = 0
+        self.min_execution_times_setup = 1000000000
+        self.average_execution_times_setup = 0
+        self.runtime = 0
+        for machine_id in self.execution_times:
+            self.runtime = max(self.runtime, self.execution_times[machine_id])  # max execution time (without setup)
+            if self.execution_times_setup[machine_id]>self.max_execution_times_setup:
+                self.max_execution_times_setup = self.execution_times_setup[machine_id]
+            if self.execution_times_setup[machine_id]<self.min_execution_times_setup:
+                self.min_execution_times_setup = self.execution_times_setup[machine_id]
+            self.average_execution_times_setup += self.execution_times_setup[machine_id]
 
+        self.average_execution_times_setup /= len(self.execution_times_setup)
 
     def __str__(self) -> str:
         return f"Task - job index {self.job_index} - task index {self.task_index} - parent_index {self.parent_index} - children {self.children}"

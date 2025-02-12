@@ -4,6 +4,7 @@ from typing import List
 from src.data_generator.task import Task
 from src.environments.env_tetris_scheduling import Env
 
+from src.models.machine import Machine
 
 from torch_geometric.data import HeteroData
 import torch
@@ -37,7 +38,7 @@ class IndirectActionEnvGNN(Env):
 
         # TODO: num_operations must be always the number of operations that were not scheduled/done already!!!
         # DONE in the code below
-        self.num_operations = sum(1 for task in self.tasks if not task.done)
+        self.num_operations = 0
 
         self.heteroData = HeteroData()
 
@@ -45,6 +46,7 @@ class IndirectActionEnvGNN(Env):
 
 
     def generate_gnn(self):
+        self.num_operations = sum(1 for task in self.tasks if not task.done)
 
         print('self.num_operations, self.num_features_oper', self.num_operations, self.num_features_oper)
         print('self.num_machines, self.num_features_mach', self.num_machines, self.num_features_mach)
@@ -102,7 +104,9 @@ class IndirectActionEnvGNN(Env):
                 # TODO: this can be improved by using the children list
                 # DONE in the code below
                 for task_j in task.children:
-                    aux_list_op.append([task_i, task_j])
+                    # TODO: this should be done the other way around, i.e. the child should be appended to the parent
+                    # DONE in the code below
+                    aux_list_op.append([task_j, task_i])
 
                 # Operation-machine edges
                 count_eligible_machines = task.machines.count(1)
@@ -152,6 +156,7 @@ class IndirectActionEnvGNN(Env):
                 # c. Minimum processing time: Highlights the quickest possible execution time.
                 aux_list_op_min_processing_time.append(task.min_execution_times_setup)
                 # d. Proportion of machines that are eligible for Oij
+                # TODO: we need exactly the number of machines per problem instance
                 aux_list_op_proportion_machines.append(count_eligible_machines / len(task.machines))
 
         # TODO: only for those tasks that are not done yet
@@ -200,16 +205,29 @@ class IndirectActionEnvGNN(Env):
         self.heteroData['operation', 'exec', 'machine'].edge_index = torch.LongTensor(aux_list_mach).T
         print('self.heteroData[operation, exec, machine].edge_index', self.heteroData['operation', 'exec', 'machine'].edge_index)
         # print('before self.heteroData[operation, exec, machine].edge_attr', self.heteroData['operation', 'exec', 'machine'].edge_attr)
-        self.heteroData['operation', 'exec', 'machine'].edge_attr = torch.Tensor(aux_list_features)
+        self.heteroData['operation', 'exec', 'machine'].edge_attr = torch.Tensor(aux_list_features).T
         print('self.heteroData[operation, exec, machine].edge_attr', self.heteroData['operation', 'exec', 'machine'].edge_attr)
 
         # print('before self.heteroData[machine, exec, operation].edge_index', self.heteroData['machine', 'exec', 'operation'].edge_index)
         self.heteroData['machine', 'exec', 'operation'].edge_index = torch.LongTensor(aux_list_mach_2).T
         print('self.heteroData[machine, exec, operation].edge_index', self.heteroData['machine', 'exec', 'operation'].edge_index)
         # print('before self.heteroData[machine, exec, operation].edge_attr', self.heteroData['machine', 'exec', 'operation'].edge_attr)
-        self.heteroData['machine', 'exec', 'operation'].edge_attr = torch.Tensor(aux_list_features)
+        self.heteroData['machine', 'exec', 'operation'].edge_attr = torch.Tensor(aux_list_features).T
         print('self.heteroData[machine, exec, operation].edge_attr', self.heteroData['machine', 'exec', 'operation'].edge_attr)
 
-
+    #
+    # def reset (self):
+    #     # reset episode counters and infos
+    #     self.num_steps = 0
+    #     self.makespan = 0
+    #     self.ends_of_machine_occupancies = np.zeros(self.num_machines, dtype=int)
+    #     #  kind of schedule dict with start_date and end_date
+    #     self.machines = dict()
+    #     self.machines_counter = dict()
+    #     for i in range(self.num_machines):
+    #         self.machines[i] = Machine()
+    #         self.machines_counter[i] = 0
+    #
+    #     # self.generate_gnn()
 
 
