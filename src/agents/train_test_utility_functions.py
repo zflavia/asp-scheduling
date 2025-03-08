@@ -22,10 +22,12 @@ from src.utils.file_handler.data_handler import DataHandler
 from src.agents.reinforcement_learning.ppo import PPO
 from src.agents.reinforcement_learning.dqn import DQN
 from src.agents.reinforcement_learning.ppo_masked import MaskedPPO
+from src.agents.reinforcement_learning.ppo_gnn import PPOGNN
+
 
 # Constants
 TIMESTAMP: str = f"{datetime.datetime.now().strftime('%d%m%Y%H%M')}"
-AGENT_DICT: Dict[str, str] = {'ppo_masked': 'MaskedPPO', 'ppo': 'PPO', 'dqn': 'DQN'}
+AGENT_DICT: Dict[str, str] = {'ppo_masked': 'MaskedPPO', 'ppo': 'PPO', 'dqn': 'DQN', 'ppo_gnn': 'PPOGNN'}
 TRAIN_ALGORITHM_PARAM: str = 'algorithm'
 TEST_ALGORITHM_PARAM: str = 'test_algorithm'
 
@@ -108,6 +110,8 @@ def get_agent_class_from_config(config: dict) -> Any:
     """
     agent_param = get_agent_param_from_config(config)
     # use AGENT_DICT to determine the correct Class name for an agent shortcut
+
+    print('agent_param', agent_param)
     class_string = AGENT_DICT[agent_param]
 
     # get class by string from global path

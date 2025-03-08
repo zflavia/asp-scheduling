@@ -124,13 +124,13 @@ def load_bom_files(input_directory, similar_instances_number, should_modify_inst
                         task.execution_times[machine_id] = random.randint(10, task.runtime)
                         task.setup_times[machine_id] = random.randint(10, task.setup_time)
                         task.execution_times_setup[machine_id] = task.execution_times[machine_id] + task.setup_times[machine_id]
-                 max_runtime = max(max_runtime, task.execution_times[machine_id])
-                 max_setup = max(max_setup, task.setup_times[machine_id])
-                 average_runtime += task.execution_times[machine_id]
-            task.runtime = max_runtime
-            task.average_runtime = int(average_runtime / len(task.machines))
-            task.setup_time = max_setup
-            task.recalculate_execution_times_setup()
+                    max_runtime = max(max_runtime, task.execution_times[machine_id])
+                    max_setup = max(max_setup, task.setup_times[machine_id])
+                    average_runtime += task.execution_times[machine_id]
+                 task.runtime = max_runtime
+                 task.average_runtime = int(average_runtime / len(task.machines))
+                 task.setup_time = max_setup
+                 task.recalculate_execution_times_setup()
 
         for i in range(similar_instances_number):
             instance_index = random.randint(0, original_list_length - 1)
@@ -160,7 +160,7 @@ def load_bom_files(input_directory, similar_instances_number, should_modify_inst
                 task.setup_time = max_setup
                 task.recalculate_execution_times_setup()
 
-        instance_list.append(new_instance)
+            instance_list.append(new_instance)
 
     return instance_list
 

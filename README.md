@@ -1,3 +1,11 @@
+TODO: delete this
+```bash
+python3 -m src.agents.train_gnn -fp training/ppo/config_ASP_TUBES_ORIGINAL_TESTING_GNN.yaml
+```
+
+
+
+
 # Extended version of Schlably to support in-tree precedence relations
 
 This is an extended version of Schlably to support in-tree precedence relations for ASP (Assembly Scheduling Problem) instances.

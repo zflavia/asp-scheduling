@@ -3,7 +3,7 @@ import warnings
 from typing import Tuple, Any
 from src.environments.env_tetris_scheduling import Env
 from src.environments.env_tetris_scheduling_indirect_action import IndirectActionEnv
-from src.environments.env_tetris_scheduling_indirect_action_gnn import IndirectActionEnvGNN
+from src.environments.env_tetris_scheduling_gnn import EnvGNN
 
 # Constants
 DEFAULT_ENVIRONMENT_NAME: str = 'env_tetris_scheduling'
@@ -16,9 +16,9 @@ ENVIRONMENT_MAPPER_DICT: dict = {
         'class': IndirectActionEnv,
         'compatible_algorithms': ['dqn', 'ppo']
     },
-    'env_tetris_scheduling_indirect_action_gnn': {
-        'class': IndirectActionEnvGNN,
-        'compatible_algorithms': ['dqn', 'ppo']
+    'env_tetris_scheduling_gnn': {
+        'class': EnvGNN,
+        'compatible_algorithms': ['ppo_gnn']
     }
 }
 

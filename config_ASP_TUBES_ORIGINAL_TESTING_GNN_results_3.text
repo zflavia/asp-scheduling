@@ -63,7 +63,7 @@ self.heteroData[operation, exec, machine].edge_index tensor([[ 0,  1,  2,  3,  4
           9],
         [ 6, 13, 14, 12,  7,  8,  9, 10, 11,  6, 17, 15, 16,  1,  2,  3,  4,  5,
           0]])
-self.heteroData[operation, exec, machine].edge_attr tensor([[3.4800e+03, 2.3200e-01, 1.0000e+00],
+self.heteroData.edge_attr tensor([[3.4800e+03, 2.3200e-01, 1.0000e+00],
         [1.6200e+03, 1.0000e+00, 1.0000e+00],
         [1.6200e+03, 1.0000e+00, 1.0000e+00],
         [1.9000e+03, 1.0000e+00, 1.0000e+00],

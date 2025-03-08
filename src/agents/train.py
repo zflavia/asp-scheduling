@@ -100,7 +100,6 @@ def main(config_file_name: dict = None, external_config: dict = None, binary_fea
 
     # get config and data
     config = load_config(config_file_name, external_config)
-    #rms
     data = load_data(config)
 
     # create logger and update config
@@ -115,7 +114,7 @@ def main(config_file_name: dict = None, external_config: dict = None, binary_fea
     train_data, test_data = train_test_split(
         data, train_size=config.get('train_test_split'), random_state=split_random_seed)
     test_data, val_data = train_test_split(
-        test_data, train_size=config.get('test_validation_split'), random_state=split_random_seed)
+        test_data, test_size=config.get('test_validation_split'), random_state=split_random_seed)
 
     # log data
     logger.log_wandb_artifact({'name': 'dataset', 'type': 'dataset',
@@ -128,7 +127,7 @@ def main(config_file_name: dict = None, external_config: dict = None, binary_fea
     training(config=config, data_train=train_data, data_val=val_data, logger=logger, binary_features=binary_features)
 
 
-def get_perser_args():
+def get_parser_args():
     """Get arguments from command line"""
     # Arguments for function
     parser = argparse.ArgumentParser(description='Train Agent in Production Scheduling Environment')
@@ -147,7 +146,7 @@ def get_perser_args():
 if __name__ == "__main__":
 
     # get config_file and binary_features from terminal input
-    parse_args = get_perser_args()
+    parse_args = get_parser_args()
     config_file_path = parse_args.config_file_path
     binary_features = parse_args.binary_features
     print(f"Binary features: {binary_features}")

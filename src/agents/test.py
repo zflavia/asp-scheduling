@@ -12,7 +12,6 @@ You can adapt the heuristics used for testing in the TEST_HEURISTICS constant. A
 When running the file from a console you can use --plot-ganttchart to show the generated gantt_chart figures.
 """
 import argparse
-from email.policy import default
 
 from matplotlib import pyplot as plt
 from typing import Tuple, List, Dict, Union
@@ -30,7 +29,6 @@ from src.utils.file_handler.model_handler import ModelHandler
 from src.data_generator.task import Task
 from src.agents.train_test_utility_functions import get_agent_class_from_config, load_config, load_data
 from src.agents.solver import OrToolSolver
-from src.models.setqueue import SetQueue
 
 # constants
 TEST_HEURISTICS: List[str] = ['rand', 'EDD', 'SPT', 'MTR', 'LTR']
@@ -221,15 +219,15 @@ def test_model(env_config: Dict, data: List[List[Task]], logger: Logger, plot: b
         #  added env_config['sp_type']
 
         run_episode(environment, model, heuristic_id, evaluation_handler, env_config['sp_type'])
-        schedule_info = ''
-        for task in environment.tasks:
-            schedule_info += task.str_schedule_info_simple() + '\n'
+        # schedule_info = ''
+        # for task in environment.tasks:
+            # schedule_info += task.str_schedule_info_simple() + '\n'
 
         # uncomment this when testing and not just training
-        print(heuristic_id)
-        print(schedule_info)
-        is_letsa = heuristic_id == 'LETSA'
-        print('Is the schedule valid? Answer: ', environment.is_asp_schedule_valid(is_letsa=is_letsa))
+        # print(heuristic_id)
+        # print(schedule_info)
+        # is_letsa = heuristic_id == 'LETSA'
+        # print('Is the schedule valid? Answer: ', environment.is_asp_schedule_valid(is_letsa=is_letsa))
 
 
     #  do not plot results
@@ -263,8 +261,8 @@ def test_model_and_heuristic(config: dict, model, data_test: List[List[Task]], l
 
     # # test agent
     # start_time = datetime.now()
-    # res = test_model(model=model, **test_kwargs)
-    # results.update({'agent': res})
+    res = test_model(model=model, **test_kwargs)
+    results.update({'agent': res})
     # end_time = datetime.now()
     # # Calculate the timespan in milliseconds
     # timespan = (end_time - start_time).total_seconds() * 1000

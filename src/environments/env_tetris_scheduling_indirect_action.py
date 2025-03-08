@@ -42,12 +42,12 @@ class IndirectActionEnv(Env):
         self.should_determine_task_index = True
 
 
-#         for task in self.tasks:
-#             min_runtime = np.inf
-#             for machine_id in range(len(task.machines)):
-#                 if task.machines[machine_id] == 1:
-#                     min_runtime = min(min_runtime, task.execution_times[machine_id])
-#             task.runtime = min_runtime
+    #         for task in self.tasks:
+    #             min_runtime = np.inf
+    #             for machine_id in range(len(task.machines)):
+    #                 if task.machines[machine_id] == 1:
+    #                     min_runtime = min(min_runtime, task.execution_times[machine_id])
+    #             task.runtime = min_runtime
 
 
     def step(self, action: int, **kwargs):
@@ -148,7 +148,7 @@ class IndirectActionEnv(Env):
                 self.execute_action_with_given_interval(0, selected_task, machine_id, start_time, end_time, index)
         #  since  we select the task instead of job, then we need to get the machine directly as in ASP
         elif  action_mode == 'agent' and self.sp_type == 'asp' and self.should_use_machine_task_pair == True and self.should_determine_task_index == False:
-             self.execute_action(0, self.tasks[selected_task_id], selected_machine)
+            self.execute_action(0, self.tasks[selected_task_id], selected_machine)
         #  check if the task is a valid one (not planned and his children all planned)
         elif action_mode == 'agent' and self.sp_type == 'asp' and self.should_use_machine_task_pair == False and self.should_determine_task_index == True:
             selected_task = self.get_selected_task_by_idx(selected_task_id)
@@ -300,7 +300,7 @@ class IndirectActionEnv(Env):
         features['estimated_remaining_processing_time_per_task'] = np.zeros(len(self.tasks))
         #  estimated) processing time for the next operation = estimated processing time for the next operation (successor of the current operation
         features['estimated_remaining_processing_time_per_successor_task'] = np.zeros(len(self.tasks))
-#         assignations =  np.zeros(len(self.tasks))
+        #         assignations =  np.zeros(len(self.tasks))
         #  remaining operations count = the number of operations on the branch from the current node(operation) to the roo
         features['remaining_tasks_count'] = np.zeros(len(self.tasks))
         #  assignations
@@ -347,8 +347,8 @@ class IndirectActionEnv(Env):
                 weight_down = 0
                 for index in range(len(task.machines)):
                     if task.machines[index] == 1:
-#                         weight_up += (self.machines_counter[index] * task.execution_times[index])
-#                         weight_down += self.machines_counter[index]
+                        #                         weight_up += (self.machines_counter[index] * task.execution_times[index])
+                        #                         weight_down += self.machines_counter[index]
                         weight_up += (features['machines_counter_dynamic'][index] * task.execution_times[index])
                         weight_down += features['machines_counter_dynamic'][index]
                 weighted_average_runtime = weight_up / weight_down
@@ -445,11 +445,11 @@ class IndirectActionEnv(Env):
         else:
             task_mask = [0] * self.num_tasks
             for task in self.tasks:
-               done = True
-               for sub_task_index in task.children:
+                done = True
+                for sub_task_index in task.children:
                     if not self.tasks[sub_task_index].done:
                         done = False
-               if done == True and not task.done:
+                if done == True and not task.done:
                     task_mask[task.task_index] = 1
 
             return task_mask
@@ -460,11 +460,11 @@ class IndirectActionEnv(Env):
         next_tasks = []
         if self.sp_type == 'asp':
             for task in self.tasks:
-               done = True
-               for sub_task_index in task.children:
+                done = True
+                for sub_task_index in task.children:
                     if not self.tasks[sub_task_index].done:
                         done = False
-               if done == True and not task.done:
+                if done == True and not task.done:
                     next_tasks.append(self.tasks[task.task_index])
         else:
             for job in range(self.num_jobs):

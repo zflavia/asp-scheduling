@@ -12,6 +12,8 @@ from src.visuals_generator.gantt_chart import GanttChartPlotter
 from typing import List, Tuple, Dict, Any, Union
 from src.models.machine import Machine
 
+from torch_geometric.data import HeteroData
+
 REWARD_BUFFER_SIZE = 250
 
 
@@ -35,7 +37,16 @@ class Env(gym.Env):
         # import data containing all instances
         self.data: List[List[Task]] = data  # is later shuffled before input into the environment
 
-        print('data', self.data)
+
+        # For GNN
+        self.num_features_oper = 4
+        self.num_features_mach = 3
+        # TODO: num_operations must be always the number of operations that were not scheduled/done already!!!
+        # DONE in the code below
+        self.num_operations = 0
+        self.heteroData = HeteroData()
+        self.state = self.heteroData
+
 
         self.binary_features = binary_features
         self.feature_index_mapping = {
@@ -101,7 +112,7 @@ class Env(gym.Env):
         self.action_space: spaces.Discrete = spaces.Discrete(self.num_tasks)
 
         # initial observation
-        self._state_obs: List = self.reset()
+        self._state_obs = self.reset()
 
         # observation space
         observation_shape = np.array(self.state_obs).shape
@@ -186,11 +197,10 @@ class Env(gym.Env):
 
         return self.state_obs
 
-    def step(self, action: Union[int, float], **kwargs) -> (List[float], Any, bool, Dict):
+    def step(self, action, **kwargs): #, action: Union[int, float], **kwargs):
         """
         Step Function
         :param action: Action to be performed on the current state of the environment
-        :return: Observation, reward, done, infos
         """
         # transform and store action
         selected_job_vector = self.to_one_hot(action, self.num_jobs)

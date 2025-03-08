@@ -74,7 +74,6 @@ class Task:
 
         # protected - optional
         self._n_machines = _n_machines
-        print('self._n_machines', self._n_machines)
         self._n_tools = _n_tools
         self._feasible_machine_from_instance_init = _feasible_machine_from_instance_init
         self._feasible_order_index_from_instance_init = _feasible_order_index_from_instance_init
