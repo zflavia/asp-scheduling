@@ -46,6 +46,9 @@ class Env(gym.Env):
         self.num_operations = 0
         self.heteroData = HeteroData()
         self.state = self.heteroData
+        self.task_nodes_mapping = {}
+        self.machine_nodes_mapping = {}
+
 
 
         self.binary_features = binary_features
@@ -144,7 +147,7 @@ class Env(gym.Env):
         - Updates the number of runs
         - Loads new instance
 
-        :return: First observation by calling the class function self.state_obs
+        # :return: First observation by calling the class function self.state_obs
 
         """
         # update runs (episodes passed so far)
@@ -194,6 +197,8 @@ class Env(gym.Env):
         max_deadline = max([task.deadline for task in self.tasks])
         self.max_deadline = max_deadline if max_deadline > 0 else 1
         self.critical_path = ([], 0)
+        self.task_nodes_mapping = {}
+        self.machine_nodes_mapping = {}
 
         return self.state_obs
 
@@ -382,8 +387,6 @@ class Env(gym.Env):
         index:   index in the list of time intervals/machine
 
         """
-        if task.task_id == 832:
-            print('Task 832: ', task.task_id, 'Original completion time', original_completion_time)
 
         possible_machines = task.machines   # binary vector with {0,1}
 
@@ -659,6 +662,9 @@ class Env(gym.Env):
         :return: True if all jobs are done, else False
 
         """
+        for task in self.tasks:
+            print('in check_done --> task_index', task.task_index, 'done', task.done, 'started', task.started, 'task.finished', task.finished)
+
         sum_done = sum([task.done for task in self.tasks])
         return sum_done == self.num_all_tasks or self.num_steps == self.num_steps_max
 

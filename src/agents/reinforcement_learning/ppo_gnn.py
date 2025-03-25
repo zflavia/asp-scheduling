@@ -130,7 +130,7 @@ class Model(torch.nn.Module):
 
 
 class ActorCritic(nn.Module):
-    def __init__(self,metadata, hidden_layers=128, num_layers=2, heads = 3):
+    def __init__(self, metadata, hidden_layers=128, num_layers=2, heads = 3):
         super(ActorCritic, self).__init__()
         self.actor = Model(hidden_layers, 32, metadata, True, num_layers, heads)
         self.critic = Model(hidden_layers, 32, metadata, False, num_layers, heads)
@@ -139,8 +139,13 @@ class ActorCritic(nn.Module):
 
     def forward(self, state, deterministic: bool = True):
         action_probs = self.actor(state).T[0]
+        # print('self.action(state', self.actor(state) )
+        # print('action_probs_shape in forward before', action_probs.shape)
+        # print('action_probs in forward before', action_probs)
         action_probs[state[('machine','exec','operation')].mask] = float("-inf")
         action_probs = self.soft(action_probs)
+        # print('action_probs in forward after', action_probs)
+
 
         dist = Categorical(action_probs)
 
@@ -150,6 +155,8 @@ class ActorCritic(nn.Module):
             action = torch.argmax(action_probs)
 
         log_prob = dist.log_prob(action)
+
+        # print('action in forward before detach', action)
 
         return action.detach(), log_prob.detach()
 
@@ -202,7 +209,7 @@ class PPOGNN:
         self.num_timesteps = 0
         self.n_updates = 0
         self.learning_rate = config.get('learning_rate', 0.002)
-        self.batch_size = config.get('batch_size', 256)
+        self.batch_size = config.get('batch_size', 64)
         self.learning_rate_actor = config.get('learning_rate_actor', self.learning_rate)
         self.learning_rate_critic = config.get('learning_rate_critic', self.learning_rate)
 
@@ -210,7 +217,7 @@ class PPOGNN:
         self.num_layers = config.get('num_layers', 2)
         self.heads = config.get('heads', 3)
 
-        self.metadata = metadata
+        # self.metadata = metadata
 
         self.logger = logger if logger else Logger(config=config)
         self.seed = config.get('seed', None)
@@ -225,16 +232,17 @@ class PPOGNN:
         self.rollout_buffer = RolloutBuffer(self.rollout_steps, self.batch_size)
 
         if metadata is None:
-            state = self.env.reset()
-            metadata = state.metadata()
+            self.metadata = self.env.get_metadata()
+        else:
+            self.metadata = metadata
 
-        self.policy = ActorCritic(metadata, self.hidden_layers, self.num_layers, self.heads).to(device)
+        self.policy = ActorCritic(self.metadata, self.hidden_layers, self.num_layers, self.heads).to(device)
 
         #self.policy.actor = self.policy.actor.to(device)
         #self.policy.critic = self.policy.critic.to(device)
 
-        self.policy_old = ActorCritic(metadata, self.hidden_layers, self.num_layers, self.heads).to(device)
-        self.policy_old = ActorCritic(metadata, self.hidden_layers, self.num_layers, self.heads).to('cpu')
+        self.policy_old = ActorCritic(self.metadata, self.hidden_layers, self.num_layers, self.heads).to(device)
+        self.policy_old = ActorCritic(self.metadata, self.hidden_layers, self.num_layers, self.heads).to('cpu')
 
 
         self.optimizer = torch.optim.Adam([
@@ -384,8 +392,7 @@ class PPOGNN:
 
         #
         env = data["params"]["env"]
-        state = env.reset()
-        metadata = state.metadata()
+        metadata = env.get_metadata()
 
         # create PPO object, commit necessary parameters. Update remaining parameters
         model = cls(env=env, config=config, logger=logger, metadata=metadata)
@@ -414,6 +421,7 @@ class PPOGNN:
             state = self.env.reset()
             done = False
             instances += 1
+            print('instance nr', instances)
 
             # run agent on env until done
             while not done:
@@ -456,7 +464,10 @@ class PPOGNN:
 
                 state = new_state
 
-                print('state', state, state['operation', 'prec', 'operation'].edge_index)
+                # print('state', state, state['operation', 'prec', 'operation'].edge_index)
+
+            print('Is the schedule valid? Answer: ', self.env.is_asp_schedule_valid(False))
+
 
             if instances % len(self.env.data) == len(self.env.data) - 1:
                 mean_training_reward = np.mean(self.env.episodes_rewards)

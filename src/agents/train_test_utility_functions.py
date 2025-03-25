@@ -111,7 +111,6 @@ def get_agent_class_from_config(config: dict) -> Any:
     agent_param = get_agent_param_from_config(config)
     # use AGENT_DICT to determine the correct Class name for an agent shortcut
 
-    print('agent_param', agent_param)
     class_string = AGENT_DICT[agent_param]
 
     # get class by string from global path

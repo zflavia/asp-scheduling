@@ -30,7 +30,7 @@ def dfs_bom(node, sorted_top, tasks_mapping_ids, deadline, job_index, filename, 
     max_runtime = 0
     max_setup = 0
     average_runtime = 0
-# TODO: machine['id'] - 1
+    # TODO: machine['id'] - 1
     # DONE see below
     for machine in node.get('machines', []):
         machine_id = machine['id'] - 1
