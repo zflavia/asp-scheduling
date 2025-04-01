@@ -423,8 +423,8 @@ class EnvGNN(Env):
                 if self.tasks[sel_op_mapped_to_task].machines[self.machine_nodes_mapping[key][0]] == 1:
                     print('sel_op_mapped_to_task', sel_op_mapped_to_task, 'key', key)
                     self.machine_nodes_mapping[key] = (self.machine_nodes_mapping[key][0], self.machine_nodes_mapping[key][1] - 1)
-                    if self.machine_nodes_mapping[key][1] == 0:
-                        self.machine_nodes_mapping[key - 1] = self.machine_nodes_mapping.pop(key)
+                    # if self.machine_nodes_mapping[key][1] == 0:
+                    #    self.machine_nodes_mapping[key - 1] = self.machine_nodes_mapping.pop(key)
             updated_machine_nodes_mapping = {}
             counter = 0
             for key in list(self.machine_nodes_mapping.keys()):
