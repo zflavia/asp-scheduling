@@ -170,7 +170,9 @@ class EnvGNN(Env):
         # print ('self.heteroData[operation].x', self.heteroData['operation'].x)
 
         aux_list_features.append([aux_list_op_mach_processing_times, aux_list_op_mach_processing_time_ratios_a, aux_list_op_mach_processing_time_ratios_b])
+        print('aux_list_features', aux_list_features)
         aux_list_features_flat = [item for sublist in aux_list_features for item in sublist]
+        print('aux_list_features_flat nr_elements', len(aux_list_features_flat), 'elements',aux_list_features_flat )
 
 
         # print('before self.heteroData[operation, exec, machine].edge_index', self.heteroData['operation', 'exec', 'machine'].edge_index)
@@ -179,9 +181,11 @@ class EnvGNN(Env):
 
         # print('before self.heteroData[operation, exec, machine].edge_index', self.heteroData['operation', 'exec', 'machine'].edge_index)
         self.heteroData['operation', 'exec', 'machine'].edge_index = torch.LongTensor(aux_list_mach).T
+        print('self.heteroData.edge_index', self.heteroData['operation', 'exec', 'machine'].edge_index.shape)
         # print('self.heteroData[operation, exec, machine].edge_index', self.heteroData['operation', 'exec', 'machine'].edge_index)
         # print('before self.heteroData[operation, exec, machine].edge_attr', self.heteroData['operation', 'exec', 'machine'].edge_attr)
         self.heteroData['operation', 'exec', 'machine'].edge_attr = torch.Tensor(aux_list_features_flat).T
+        print('self.heteroData.edge_attr', self.heteroData['operation', 'exec', 'machine'].edge_attr.shape)
         # print('self.heteroData[operation, exec, machine].edge_attr', self.heteroData['operation', 'exec', 'machine'].edge_attr)
 
         # print('before self.heteroData[machine, exec, operation].edge_index', self.heteroData['machine', 'exec', 'operation'].edge_index)
@@ -347,9 +351,14 @@ class EnvGNN(Env):
             # print('before sel_op deletion from prec edges',  self.state['operation', 'prec', 'operation'].edge_index)
             self.state['operation', 'prec', 'operation'].edge_index = self.state['operation', 'prec', 'operation'].edge_index[:,self.state['operation', 'prec', 'operation'].edge_index[0,:] != sel_op]
             # print('after sel_op deletion from prec edges',  self.state['operation', 'prec', 'operation'].edge_index)
+            beforeShape = self.state['machine'].x.shape
             self.state = T.RemoveIsolatedNodes()(self.state)
+            afterShape = self.state['machine'].x.shape
 
-            # calculate new time
+            print('beforeShape', beforeShape, 'afterShape', afterShape)
+
+
+        # calculate new time
             # #fixed from sel_mach -> sel_mach_mapped
             start_time = self.ends_of_machine_occupancies[sel_mach_mapped]
             execution_setup_time  = self.tasks[sel_op_mapped_to_task].execution_times_setup[sel_mach_mapped]
@@ -410,13 +419,20 @@ class EnvGNN(Env):
 
             print('edge index mach-op after scheduling', self.state['machine', 'exec', 'operation'].edge_index.T)
             print('self.machine_nodes_mapping after update', self.machine_nodes_mapping)
-            # for key in list(self.machine_nodes_mapping.keys()):
-            #     if self.tasks[sel_op_mapped_to_task].machines[self.machine_nodes_mapping[key][0]] == 1:
-            #         print('sel_op_mapped_to_task', sel_op_mapped_to_task, 'key', key)
-            #         self.machine_nodes_mapping[key] = (self.machine_nodes_mapping[key][0], self.machine_nodes_mapping[key][1] - 1)
-            #         # if self.machine_nodes_mapping[key][1] == 0:
-            #         #     self.machine_nodes_mapping[key - 1] = self.machine_nodes_mapping.pop(key)
-            # for key in list(self.machine_nodes_mapping.keys()):
+            for key in list(self.machine_nodes_mapping.keys()):
+                if self.tasks[sel_op_mapped_to_task].machines[self.machine_nodes_mapping[key][0]] == 1:
+                    print('sel_op_mapped_to_task', sel_op_mapped_to_task, 'key', key)
+                    self.machine_nodes_mapping[key] = (self.machine_nodes_mapping[key][0], self.machine_nodes_mapping[key][1] - 1)
+                    if self.machine_nodes_mapping[key][1] == 0:
+                        self.machine_nodes_mapping[key - 1] = self.machine_nodes_mapping.pop(key)
+            updated_machine_nodes_mapping = {}
+            counter = 0
+            for key in list(self.machine_nodes_mapping.keys()):
+                if self.machine_nodes_mapping[key][0] != 0:
+                    updated_machine_nodes_mapping[counter] = (self.machine_nodes_mapping[key][1], self.machine_nodes_mapping[key][0])
+                    counter += 1
+            self.machine_nodes_mapping = copy.deepcopy(self.machine_nodes_mapping)
+
             #     if self.tasks[sel_op_mapped_to_task].machines[self.machine_nodes_mapping[key][0]] == 1:
             #         key_copy = key
             #         while key_copy > 0 and self.machine_nodes_mapping[key_copy][1] == 0:
