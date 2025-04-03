@@ -360,7 +360,7 @@ class EnvGNN(Env):
 
             # calculate new time
             # # fixed from sel_mach -> sel_mach_mapped
-            start_time = self.ends_of_machine_occupancies[sel_mach_mapped]
+            start_time =  self.tasks[sel_op_mapped_to_task].last_child_scheduled_finished # self.ends_of_machine_occupancies[sel_mach_mapped]
             execution_setup_time  = self.tasks[sel_op_mapped_to_task].execution_times_setup[sel_mach_mapped]
             completion_time = start_time + execution_setup_time
 
@@ -368,7 +368,7 @@ class EnvGNN(Env):
             if self.tasks[sel_op_mapped_to_task].done:
                 raise RuntimeError("The selected operation has already been completed.")
             self.tasks[sel_op_mapped_to_task].done = True
-            self.tasks[sel_op_mapped_to_task].started =  self.tasks[sel_op_mapped_to_task].last_child_scheduled_finished # start_time
+            self.tasks[sel_op_mapped_to_task].started = start_time
             self.tasks[sel_op_mapped_to_task].finished = completion_time
             self.tasks[sel_op_mapped_to_task].selected_machine = sel_mach_mapped
             parent_task_index = self.tasks[sel_op_mapped_to_task].parent_index
