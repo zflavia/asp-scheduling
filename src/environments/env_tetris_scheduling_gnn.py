@@ -358,8 +358,8 @@ class EnvGNN(Env):
             print('beforeShape', beforeShape, 'afterShape', afterShape)
 
 
-        # calculate new time
-            # #fixed from sel_mach -> sel_mach_mapped
+            # calculate new time
+            # # fixed from sel_mach -> sel_mach_mapped
             start_time = self.ends_of_machine_occupancies[sel_mach_mapped]
             execution_setup_time  = self.tasks[sel_op_mapped_to_task].execution_times_setup[sel_mach_mapped]
             completion_time = start_time + execution_setup_time
@@ -368,10 +368,14 @@ class EnvGNN(Env):
             if self.tasks[sel_op_mapped_to_task].done:
                 raise RuntimeError("The selected operation has already been completed.")
             self.tasks[sel_op_mapped_to_task].done = True
-            self.tasks[sel_op_mapped_to_task].started = start_time
+            self.tasks[sel_op_mapped_to_task].started =  self.tasks[sel_op_mapped_to_task].last_child_scheduled_finished # start_time
             self.tasks[sel_op_mapped_to_task].finished = completion_time
             self.tasks[sel_op_mapped_to_task].selected_machine = sel_mach_mapped
+            parent_task_index = self.tasks[sel_op_mapped_to_task].parent_index
+            if parent_task_index is not None:
+                self.tasks[parent_task_index].last_child_scheduled_finished = max(completion_time, self.tasks[parent_task_index].last_child_scheduled_finished)
             print('Scheduled operation: ', sel_op_mapped_to_task, self.tasks[sel_op_mapped_to_task].started, self.tasks[sel_op_mapped_to_task].finished, self.tasks[sel_op_mapped_to_task].selected_machine, self.tasks[sel_op_mapped_to_task].done)
+
 
             done = self.check_done()
             if done:
@@ -385,7 +389,7 @@ class EnvGNN(Env):
                 if key > sel_op:
                     self.task_nodes_mapping[key - 1] = self.task_nodes_mapping.pop(key)
 
-            print('after update of mapping', self.task_nodes_mapping)
+            # print('after update of mapping', self.task_nodes_mapping)
 
             # update machine occupancy
             self.ends_of_machine_occupancies[sel_mach_mapped] = completion_time
@@ -421,39 +425,14 @@ class EnvGNN(Env):
             print('self.machine_nodes_mapping after update', self.machine_nodes_mapping)
             for key in list(self.machine_nodes_mapping.keys()):
                 if self.tasks[sel_op_mapped_to_task].machines[self.machine_nodes_mapping[key][0]] == 1:
-                    print('sel_op_mapped_to_task', sel_op_mapped_to_task, 'key', key)
                     self.machine_nodes_mapping[key] = (self.machine_nodes_mapping[key][0], self.machine_nodes_mapping[key][1] - 1)
-                    # if self.machine_nodes_mapping[key][1] == 0:
-                    #    self.machine_nodes_mapping[key - 1] = self.machine_nodes_mapping.pop(key)
             updated_machine_nodes_mapping = {}
             counter = 0
             for key in list(self.machine_nodes_mapping.keys()):
-                if self.machine_nodes_mapping[key][0] != 0:
-                    updated_machine_nodes_mapping[counter] = (self.machine_nodes_mapping[key][1], self.machine_nodes_mapping[key][0])
+                if self.machine_nodes_mapping[key][1] != 0: #FM: pe pozitia 1 se tine numarul de operatii
+                    updated_machine_nodes_mapping[counter] = (self.machine_nodes_mapping[key][0], self.machine_nodes_mapping[key][1]) # modificat 0 cu 1, erau pozitionate gresit in tuplu
                     counter += 1
-            self.machine_nodes_mapping = copy.deepcopy(self.machine_nodes_mapping)
-
-            #     if self.tasks[sel_op_mapped_to_task].machines[self.machine_nodes_mapping[key][0]] == 1:
-            #         key_copy = key
-            #         while key_copy > 0 and self.machine_nodes_mapping[key_copy][1] == 0:
-            #             self.machine_nodes_mapping[key_copy - 1] = self.machine_nodes_mapping.pop(key_copy)
-            #             key_copy -= 1
-
-            # shift = 0
-            # for old_key in self.machine_nodes_mapping.keys():
-            #     machine, counter = self.machine_nodes_mapping[old_key][0], self.machine_nodes_mapping[old_key][1]
-            #     if self.tasks[sel_op_mapped_to_task].machines[machine] == 1:
-            #         counter -= 1
-            #         self.machine_nodes_mapping[old_key] = (machine, counter)
-            #
-            #     if counter == 0:
-            #         shift += 1  # Remove immediately and adjust shift
-            #         continue
-            #
-            #     key = old_key - shift
-            #     if self.tasks[sel_op_mapped_to_task].machines[machine] == 1:
-            #         self.machine_nodes_mapping[key] = self.machine_nodes_mapping[old_key]
-
+            self.machine_nodes_mapping = updated_machine_nodes_mapping #copy.deepcopy(self.machine_nodes_mapping) - nu se face copie a noii structuri
 
 
             print('self.machine_nodes_mapping after update', self.machine_nodes_mapping)
@@ -464,8 +443,6 @@ class EnvGNN(Env):
             self.num_operations -= 1 # decrease the number of operations by 1 because one operation has been scheduled
             print('self.state[machine].x.shape[0]', self.state['machine'].x.shape[0])
             for i in range(self.state['machine'].x.shape[0]):
-                # i_mapped = self.machine_nodes_mapping[i][0]
-                # self.state['machine'].x[i, 1] = aux_list_number_of_operations_executable_on_machines[i_mapped] / self.num_operations
                 self.state['machine'].x[i, 1] = self.machine_nodes_mapping[i][1] / self.num_operations
 
             for i in range(self.state['operation'].x.shape[0]):

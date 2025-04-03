@@ -63,8 +63,7 @@ def get_action(env, model, heuristic_id: str, heuristic_agent: Union[HeuristicSe
             selected_action = heuristic_agent(tasks, task_mask, heuristic_id)
     else:
         action_mode = 'agent'
-        selected_action, _ = model.predict(observation=obs, action_mask=mask)
-
+        selected_action, _= model.predict(state=env.state, observation=env.state_obs) #model.predict(observation=obs, action_mask=mask)#FM aici nu era bine la parametrii
     return selected_action, action_mode, completion_time
 
 

@@ -257,18 +257,19 @@ class PPOGNN:
 
         self.MseLoss = nn.MSELoss()
 
-    def predict(self, obs = None, state = None, deterministic: bool = True):
+    def predict(self, state = None, observation = None, deterministic: bool = True):
         with torch.no_grad():
             state = self.env.normalize_state(state)
             state = state.to(device)
             action, log_prob = self.policy_old.forward(state, deterministic)
 
         if deterministic:
-            self.rollout_buffer.states.append(copy.deepcopy(state))
-            self.rollout_buffer.actions.append(action)
+            self.rollout_buffer.states.append(copy.deepcopy(state))#FM era state inainte in loc de observation
+            self.rollout_buffer.actions.append(action) #FM era state inainte in loc de action
             self.rollout_buffer.logprobs.append(log_prob)
+            print("predict() self.rollout_buffer.logprobs", self.rollout_buffer.logprobs[:5])
 
-        return action, state
+        return action, log_prob #FM-intoarce  log_prob in loc de state
 
     def train(self):
         all_rewards = []

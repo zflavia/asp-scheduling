@@ -88,6 +88,7 @@ class Task:
         self.setup_time = setup_time
         self.execution_times = execution_times
         self.execution_times_setup: Dict[int, int] = {}
+        self.last_child_scheduled_finished = 0
         if should_multiply_quantity_to_execution_times == True:
             self.max_execution_times_setup = 0
             self.min_execution_times_setup = 1000000000
