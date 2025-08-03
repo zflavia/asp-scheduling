@@ -1,0 +1,46 @@
+##############################################################################
+###                         Training  GP                                   ###
+##############################################################################
+
+# (R)   [String]  The algorithm you want to use - This template is for GP
+algorithm: gp
+# (R)   [string]  Path to the file with generated data that to be used for training
+instances_file: asp/config_ASP_variants_tubes_train_5files.pkl
+# (O)   [int]  not used, kept for compatibility with others agents
+total_instances: 0
+# (O)   [int]  not used, kept for compatibility with others agents
+total_timesteps: 0
+
+
+# (R)   [string] the name of the file that contains best rule. Alternatively set to <automatic>, then it will be
+#      replaced with the current DayMonthYearHourMinute
+saved_model_name: gp_best_rule_5files
+
+# (O)   [string]  Set a directory where you want to save the agent model
+experiment_save_path: models
+
+# (R)   [int]     Seed for all pseudo random generators (random, numpy, torch)
+seed: 10
+
+#--- DEAP parameter ---
+# (O)   [int]     Number of paraller processces for DEAP
+no_parallel_processes: 1
+
+#--- GP parameter ---
+# (O)   [int]     Number of individuals in the population
+population_size: 10
+# (O)   [int]   ......
+halloffame_size: 1
+# (O)   [int]     Maximum depth of a tree
+gp_tree_max_depth: 7
+# (O)   [float]   Crossover probability between [0,1]
+crossover_probability: 0.5
+# (O)   [float]   Mutation probability between [0,1]
+mutation_probability: 0.3
+# (O)   [int]   Stopping criteria: Generations number
+generations_number: 10
+
+
+# --- env (Environment) parameter ---
+# (R)   [str]     Environment you want to use. The vanilla case is env_gp.
+environment: env_gp

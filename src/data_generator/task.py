@@ -122,7 +122,7 @@ class Task:
         self.average_execution_times_setup /= len(self.execution_times_setup)
 
     def __str__(self) -> str:
-        return f"Task - job index {self.job_index} - task index {self.task_index} - parent_index {self.parent_index} - children {self.children}"
+        return f"Task - job index {self.job_index} - task index {self.task_index} - parent_index {self.parent_index} - children {self.children} - machine-no {len(self.execution_times)}"
 
     def str_info(self) -> str:
         return f"Job index {self.job_index}\nTask index {self.task_index}\n "

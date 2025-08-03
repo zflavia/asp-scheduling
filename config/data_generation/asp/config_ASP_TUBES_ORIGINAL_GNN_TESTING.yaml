@@ -1,0 +1,36 @@
+##############################################################################
+###                         Data generation                                ###
+##############################################################################
+
+# (R) [str] Type of your scheduling problem - this template is for the asp partially
+sp_type: asp
+# (O)   [string]  Filename under the generated data will be saved (subdirectory is chosen by sp_type)
+instances_file: config_ASP_TUBES_ORIGINAL_GNN_test.pkl
+# (O)   [int]     Seed for all pseudo random generators (random, numpy, torch)
+seed: 0
+# (R) [int] Number of jobs to be scheduled
+num_jobs: 1
+# (R) [int] Number of tasks per job to be scheduled (has to be equal to num_machines for jssp)
+num_tasks: 50
+# (R) [int] Percentage of predecessors of a task
+predecessor_percentage: 30
+# (R) [int] Number of available machines (has to be equal to num_tasks for jssp)
+num_machines: 19
+# (R) [int] Number of available tools to be scheduled
+num_tools: 0
+# (O) [list[int]] Duration of tasks are sampled uniformly from this list
+runtimes: [2, 4, 6, 8, 10]
+# (R) [int] Number of instances (instances of the scheduling problem) to be generated
+num_instances: 3
+# (O) [int] Number of parallel processes used to calculate the instances
+num_processes: 16
+# (O) [bool] Save the generated data in a file
+write_to_file: True
+# (0) [bool] If true, the instances will be modified
+should_modify_instances: False
+# (O) [int] Number of instances to be generated based on the original instances
+num_similar_instances: 0
+# (0) [bool] If true, the execution/processing times of the tasks will be multiplied by the quantity
+should_multiply_quantity_to_execution_times: True
+# (O) [string] Load the bom input files from this input directory ./data/own_data/ASP_TUBES_2
+input_directory: ./data/own_data/ASP-GNN-TEST-1

@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GP Training Configuration Schema",
+  "type": "object",
+  "required": ["algorithm", "instances_file", "seed", "environment"],
+  "properties": {
+    "algorithm": {
+      "type": "string",
+      "enum": ["gp"],
+      "description": "The algorithm to use — only 'gp' is valid for this template."
+    },
+    "instances_file": {
+      "type": "string",
+      "description": "Path to the file with generated training data."
+    },
+    "saved_model_name": {
+      "type": "string",
+      "description": "Optional filename to save the finished model."
+    },
+    "experiment_save_path": {
+      "type": "string",
+      "description": "Model output directory."
+    },
+    "seed": {
+      "type": "integer",
+      "description": "Seed for all pseudo-random generators (random, numpy, torch)."
+    },
+    "no_parallel_processes": {
+      "type": "integer",
+      "description": "Number of parallel processes used by DEAP library."
+    },
+    "generations_number": {
+      "type": "integer",
+      "minimum": 3,
+      "description": "Stooping criteria: Number of repetitions."
+    },
+    "population_size": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of individuals in the population."
+    },
+    "halloffame_size": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of elite individuals preserved across generations."
+    },
+    "gp_tree_max_depth": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum depth allowed for a tree in GP."
+    },
+    "crossover_probability": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Probability of applying crossover during evolution."
+    },
+    "mutation_probability": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Probability of mutation during evolution."
+    },
+    "environment": {
+      "type": "string",
+      "description": "The environment to use (e.g., 'env_gp')."
+    },
+    "total_instances": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Not used, kept for compatibility with other agents."
+    },
+    "total_timesteps": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Not used, kept for compatibility with other agents."
+    }
+  },
+  "additionalProperties": false
+}

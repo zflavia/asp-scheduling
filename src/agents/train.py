@@ -36,12 +36,13 @@ def final_evaluation(config: dict, data_test: List[List[Task]], logger: Logger):
     :return: None
 
     """
+
     # Create wandb artifact from local file to store best model with wandb
     best_model_path = ModelHandler.get_best_model_path(config)
     logger.log_wandb_artifact({'name': 'agent_model', 'type': 'model'}, file_path=best_model_path.with_suffix('.pkl'))
 
     # test model
-    # create anv and agent
+    # create env and agent
     agent = get_agent_class_from_config(config)
     best_model = agent.load(file=best_model_path, config=config, logger=logger)
     evaluation_results = test.test_model_and_heuristic(config=config, model=best_model, data_test=data_test,
@@ -70,8 +71,8 @@ def training(config: dict, data_train: List[List[Task]], data_val: List[List[Tas
 
     """
     # create Environment
-
-    env, _ = EnvironmentLoader.load(config, binary_features, data=data_train, binary_features=binary_features)
+    #TODO: Roxana way 'binary_features' 2 times env, _ = EnvironmentLoader.load(config, binary_features, data=data_train, binary_features=binary_features)
+    env, _ = EnvironmentLoader.load(config, data=data_train, binary_features=binary_features)
 
     # create Agent model
     agent = get_agent_class_from_config(config)(env=env, config=config, logger=logger)

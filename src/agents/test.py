@@ -29,6 +29,7 @@ from src.utils.file_handler.model_handler import ModelHandler
 from src.data_generator.task import Task
 from src.agents.train_test_utility_functions import get_agent_class_from_config, load_config, load_data
 from src.agents.solver import OrToolSolver
+from src.environments.env_gp import EnvGP
 
 # constants
 TEST_HEURISTICS: List[str] = ['rand', 'EDD', 'SPT', 'MTR', 'LTR']
@@ -47,11 +48,15 @@ def get_action(env, model, heuristic_id: str, heuristic_agent: Union[HeuristicSe
     """
     assert bool(heuristic_id) != bool(model), \
         "You have to pass an agent model XOR a heuristic id to solve the scheduling problem"
-    obs = env.state_obs
-    mask = env.get_action_mask()
+    obs = env.state_obs if hasattr(env, 'state_obs') else None
+    mask = env.get_action_mask() if hasattr(env, 'get_action_mask') else None
     completion_time = None
 
-    if heuristic_id:
+    if isinstance(env, EnvGP):
+        action_mode = 'GP'
+        selected_action = env.get_next_action(model)
+
+    elif heuristic_id:
         action_mode = 'heuristic'
         tasks = env.tasks
         task_mask = mask
@@ -63,7 +68,7 @@ def get_action(env, model, heuristic_id: str, heuristic_agent: Union[HeuristicSe
             selected_action = heuristic_agent(tasks, task_mask, heuristic_id)
     else:
         action_mode = 'agent'
-        selected_action, _= model.predict(state=env.state, observation=env.state_obs) #model.predict(observation=obs, action_mask=mask)#FM aici nu era bine la parametrii
+        selected_action, _= model.predict(state=env.state, observation=obs) #model.predict(observation=obs, action_mask=mask)#FM aici nu era bine la parametrii
     return selected_action, action_mode, completion_time
 
 
@@ -88,6 +93,7 @@ def run_episode(env, model, heuristic_id: Union[str, None], handler: EvaluationH
     feasible_tasks = deque()
     visited = dict()
     max_deadline = -1
+
     for task in env.tasks:
         if not task.parent_index:
             feasible_tasks.append(task.task_index)
@@ -209,9 +215,8 @@ def test_model(env_config: Dict, data: List[List[Task]], logger: Logger, plot: b
     evaluation_handler = EvaluationHandler()
 
     for test_i in range(len(data)):
-
         # create env
-        environment, _ = EnvironmentLoader.load(env_config, data=[data[test_i]], binary_features=binary_features)
+        environment, _ = EnvironmentLoader.load(env_config, data=[data[test_i]], binary_features=binary_features, from_test=True)
         environment.runs = test_i
 
         # run environment episode
@@ -254,6 +259,7 @@ def test_model_and_heuristic(config: dict, model, data_test: List[List[Task]], l
 
     """
     results = {}
+    #print("test_model_and_heuristic() data_test", data_test)
 
     test_kwargs = {'env_config': config, 'data': data_test, 'logger': logger,
                    'plot': plot_ganttchart, 'log_episode': log_episode, 'binary_features': binary_features}
@@ -304,14 +310,16 @@ def get_perser_args():
 def main(external_config=None):
 
     # get config_file and binary_features from terminal input
+    print("main1")
     parse_args = get_perser_args()
     config_file_path = parse_args.config_file_path
     binary_features = parse_args.binary_features
     run_heuristics = parse_args.run_heuristics
+    print("run_heuristics", run_heuristics)
 
     # get config and data
     config = load_config(config_file_path, external_config)
-    data = load_data(config)
+    data = load_data(config) #load all test instances
 
     # Random seed for numpy as given by config
     np.random.seed(config['seed'])
@@ -321,7 +329,15 @@ def main(external_config=None):
 
     # create logger
     logger = Logger(config=config)
-    model = get_agent_class_from_config(config=config).load(file=best_model_path, config=config, logger=logger)
+    # for index, instance in enumerate(data):
+    #     for task in instance:
+    #         print("main() instance", index,  "task",  task.task_id, task.done)
+    aux_model = get_agent_class_from_config(config=config)
+    #print("main() aux_model",aux_model)
+    model= (aux_model.load(file=best_model_path, config=config, logger=logger))
+    #print("main() model", model)
+    print("main7")
+    run_heuristics = False
     results = test_model_and_heuristic(config=config, model=model, data_test=data,
                                        plot_ganttchart=parse_args.plot_ganttchart, logger=logger, binary_features=binary_features, run_heuristics=run_heuristics)
     print(results)

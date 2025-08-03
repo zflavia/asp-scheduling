@@ -22,8 +22,13 @@ from src.data_generator.task import Task
 from src.data_generator.sp_factory import SPFactory
 
 def dfs_bom(node, sorted_top, tasks_mapping_ids, deadline, job_index, filename, quantity, should_multiply_quantity_to_execution_times, num_machines = 50):
+    print("dfs_bom() parent quantity:", quantity, "curr operation_id", node['operationid'], "curr_op_quantity", node['quantity'], end=' cildren')
+    for child in node.get('children', []):
+        print(child['operationid'], end=",")
+    print()
     for child in node.get('children', []):
         dfs_bom(child, sorted_top, tasks_mapping_ids, deadline - 1, job_index, filename, quantity * node['quantity'], should_multiply_quantity_to_execution_times, num_machines)
+
     machines = [0] * num_machines
     execution_times = {}
     setup_times = {}
@@ -63,6 +68,7 @@ def dfs_bom(node, sorted_top, tasks_mapping_ids, deadline, job_index, filename, 
             _n_machines=len(machines),
             should_multiply_quantity_to_execution_times=should_multiply_quantity_to_execution_times,
         )
+    print("..dfs_bom() task quantity final:", task.quantity, "node quantity", node['quantity'], 'node id', task.task_id)
     sorted_top.append(task)
     sorted_top[-1].task_index = len(sorted_top) - 1
     tasks_mapping_ids[node['operationid']] = len(sorted_top) - 1
@@ -113,6 +119,7 @@ def load_bom_files(input_directory, similar_instances_number, should_modify_inst
                  average_runtime = 0
                  for machine_id in range(len(task.machines)):
                     machine_op_type = random.randint(0, 1)
+                    print("load_bom_files", machine_op_type, "0- should add new machine if not existing, 1 - should modify current machine times")
                     # 0- should add new machine if not existing, 1 - should modify current machine times
                     if machine_op_type == 0:
                         if task.machines[machine_id] == 0:
@@ -124,6 +131,7 @@ def load_bom_files(input_directory, similar_instances_number, should_modify_inst
                         task.execution_times[machine_id] = random.randint(10, task.runtime)
                         task.setup_times[machine_id] = random.randint(10, task.setup_time)
                         task.execution_times_setup[machine_id] = task.execution_times[machine_id] + task.setup_times[machine_id]
+                    print("task",task.machines)
                     max_runtime = max(max_runtime, task.execution_times[machine_id])
                     max_setup = max(max_setup, task.setup_times[machine_id])
                     average_runtime += task.execution_times[machine_id]

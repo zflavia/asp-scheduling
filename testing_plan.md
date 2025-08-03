@@ -3,3 +3,19 @@ Train
 python3 -m src.data_generator.bom_instance_factory -fp data_generation/asp/config_ASP_TUBES_ORIGINAL_GNN.yaml
 
 python3 -m src.agents.train -fp training/ppo_gnn/config_ASP_TUBES_ORIGINAL_GNN.yaml
+
+--Testing
+
+python3 -m src.data_generator.bom_instance_factory -fp data_generation/asp/config_ASP_TUBES_ORIGINAL_GNN_TESTING.yaml
+
+python3 -m src.agents.test -fp testing/ppo/config_ASP_TUBES_TESTING_ORIGINAL_GNN.yaml
+
+- fac un script cu 2 comenzi +  drepturi cu chmode
+
+----- GP
+
+python3 -m src.data_generator.bom_instance_factory -fp data_generation/asp/config_ASP_variants_tubes_test_2files.yaml
+
+python3 -m src.agents.train -fp training/gp/config_gp_ASP_variants_tubes.yaml 
+ 
+python3 -m src.agents.test -fp testing/gp/config_gp_ASP_variants_tubes.yaml

@@ -34,8 +34,6 @@ class Env(gym.Env):
 
         super(Env, self).__init__()
 
-        # import data containing all instances
-        self.data: List[List[Task]] = data  # is later shuffled before input into the environment
 
 
         # For GNN
@@ -43,13 +41,12 @@ class Env(gym.Env):
         self.num_features_mach = 3
         # TODO: num_operations must be always the number of operations that were not scheduled/done already!!!
         # DONE in the code below
+        self.data=data #oare de ce nu era?
         self.num_operations = 0
         self.heteroData = HeteroData()
         self.state = self.heteroData
         self.task_nodes_mapping = {}
         self.machine_nodes_mapping = {}
-
-
 
         self.binary_features = binary_features
         self.feature_index_mapping = {
@@ -72,6 +69,7 @@ class Env(gym.Env):
         self.num_jobs, self.num_tasks, self.max_runtime, self.max_deadline, self.max_sum_runtime_setup_pair = self.get_instance_info()
         self.num_machines: int = copy.copy(self.data[0][0]._n_machines)
         self.num_tools: int = copy.copy(self.data[0][0]._n_tools)
+        print("self.num_jobs", self.num_jobs, "self.num_tasks", self.num_tasks)
         self.num_all_tasks: int = self.num_jobs * self.num_tasks
         self.num_steps_max: int = config.get('num_steps_max', self.num_all_tasks)
         self.max_task_index: int = self.num_tasks - 1
@@ -175,6 +173,7 @@ class Env(gym.Env):
             self.num_jobs, self.num_tasks, self.max_runtime, self.max_deadline, self.max_sum_runtime_setup_pair = self.get_instance_info(self.data_idx)
             self.max_task_index: int = self.num_tasks - 1
             self.num_all_tasks: int = self.num_jobs * self.num_tasks
+            #print("self.num_jobs", self.num_jobs, "self.num_tasks", self.num_tasks)
             self.tardiness: numpy.ndarray = np.zeros(self.num_all_tasks, dtype=int)
         self.tasks = copy.deepcopy(self.data[self.data_idx])
         # we need  a schedule dict with start_date and end_date
@@ -251,6 +250,7 @@ class Env(gym.Env):
         """
         Retrieves info about the instance size and configuration from an instance sample
         """
+        print("get_instance_info() for instance", index)
         num_jobs, num_tasks, max_runtime, max_deadline, max_sum_runtime_setup_pair = 0, 0, 0, 0, 0
         for task in self.data[index]:
             num_jobs = task.job_index if task.job_index > num_jobs else num_jobs
@@ -662,10 +662,22 @@ class Env(gym.Env):
         :return: True if all jobs are done, else False
 
         """
-        for task in self.tasks:
-            print('in check_done --> task_index', task.task_index, 'done', task.done, 'started', task.started, 'task.finished', task.finished)
+        # for task in self.tasks:
+        #     print('in check_done --> task_index', task.task_index, 'done', task.done, 'started', task.started, 'task.finished', task.finished)
+
 
         sum_done = sum([task.done for task in self.tasks])
+
+        #if (sum_done == self.num_all_tasks or self.num_steps == self.num_steps_max):
+            # l = []
+            # for task in self.tasks:
+            #     print(task.task_id, task.finished)
+            #     l.append(task.finished)
+            # print("l", l, self.num_all_tasks, len(l))
+
+            # print("makespan", max( [t.finished for t in self.tasks]))
+            # print('Is the schedule valid? Answer: ', self.is_asp_schedule_valid(False))
+
         return sum_done == self.num_all_tasks or self.num_steps == self.num_steps_max
 
     def calculate_tardiness(self) -> int:

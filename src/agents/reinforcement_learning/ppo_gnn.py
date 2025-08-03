@@ -62,7 +62,8 @@ class RolloutBuffer:
         """
         self.states.append(state)
         self.actions.append(action)
-        self.logprobs.append(prob)
+        self.logprobs.append(prob)#FM COMENTEZA MI SE PARE CA E DUPLICATA SI MAI SCRIE CINEVA
+        #print("... all logprobs", self.logprobs)
         self.rewards.append(reward)
         self.dones.append(done)
 
@@ -96,6 +97,8 @@ class GAT(torch.nn.Module):
 
     def forward(self, x, edge_index, edge_attr_dict):
         # TODO: print x before and after call lin1
+
+        print("forward() - edge_index",edge_index, "edge_attr_dict", edge_attr_dict )
         x = self.lin1(x)
         x = self.tanh(x)
         for conv in self.convs:
@@ -142,6 +145,7 @@ class ActorCritic(nn.Module):
         # print('self.action(state', self.actor(state) )
         # print('action_probs_shape in forward before', action_probs.shape)
         # print('action_probs in forward before', action_probs)
+        #print("forward() state[('machine','exec','operation')].mask", state[('machine','exec','operation')].mask.shape)
         action_probs[state[('machine','exec','operation')].mask] = float("-inf")
         action_probs = self.soft(action_probs)
         # print('action_probs in forward after', action_probs)
@@ -167,15 +171,35 @@ class ActorCritic(nn.Module):
         action_logprobs = []
         dist_entropy = []
 
+        # print('evaluate() -state', state)
+        # print('evaluate() -action', action)
+        # print('evaluate() -state["machine"].batch', len(state["machine"].batch))
+        # print('evaluate() -state["operation"].batch', len(state["operation"].batch))
         row, col = state[('machine', 'exec', 'operation')].edge_index
         batch_index = state["machine"].batch[row]
 
-        for i in range(state["operation"].batch[-1]+1):
-            action_probs = res[batch_index==i].T[0]
+
+        # print("evaluate() state[operation].batch", state["operation"].batch)
+        # print('evaluate() state["operation"].batch[-1]', state["operation"].batch[-1])
+        for i in range(state["operation"].batch[-1]+1): #FM de ce + 1 nu am atatea date - nu inteleg
+            action_probs = res[batch_index==i].T[0] #FM-eroare la roxana
+            #print("action_probs", action_probs)
+            # print("evaluate() action_probs", action_probs.shape)
+            # print("batch_index==i", batch_index==i)
+            # print("evaluate() batch_index", batch_index.shape, "i=", i)
+            # print("evaluate() state[('machine','exec','operation')].mask", len(state[('machine','exec','operation')].mask), state[('machine','exec','operation')].mask)
+            # print("evaluate() filtrat", state[('machine','exec','operation')].mask[batch_index==i])
             action_probs[state[('machine','exec','operation')].mask[batch_index==i]] = float("-inf")
             action_probs = self.soft(action_probs)
             dist = Categorical(action_probs)
-            action_logprobs.append(dist.log_prob(action[i]))
+
+            # print("evaluate() action_logprobs", len(action_logprobs), action_logprobs)
+            # print("evaluate() action:",  action.shape, action,  'i=',i)
+            #if (len(action)==0): continue #FM- aici iasa din index e adaptare de la job la operatie probabil nu merge chiar asa de simplu initialse lua din batchul de joburi
+            # print("evaluate() dist", "action", action[i])
+            action_logprobs.append(dist.log_prob(action[i]))#FM se adauga de doaua ori se seteaza si in state_save()
+
+            # print("evaluate() action_logprobs", len(action_logprobs), action_logprobs)
             dist_entropy.append(dist.entropy())
 
         action_logprobs = torch.stack(action_logprobs)
@@ -257,21 +281,22 @@ class PPOGNN:
 
         self.MseLoss = nn.MSELoss()
 
-    def predict(self, state = None, observation = None, deterministic: bool = True):
+    def xpredict(self, state = None, observation = None, deterministic: bool = True):
+        #este functia select_action
         with torch.no_grad():
             state = self.env.normalize_state(state)
             state = state.to(device)
             action, log_prob = self.policy_old.forward(state, deterministic)
 
-        if deterministic:
-            self.rollout_buffer.states.append(copy.deepcopy(state))#FM era state inainte in loc de observation
-            self.rollout_buffer.actions.append(action) #FM era state inainte in loc de action
-            self.rollout_buffer.logprobs.append(log_prob)
-            print("predict() self.rollout_buffer.logprobs", self.rollout_buffer.logprobs[:5])
+        # if deterministic:
+        #     self.rollout_buffer.states.append(copy.deepcopy(state))#FM era state inainte in loc de observation
+        #     self.rollout_buffer.actions.append(action) #FM era state inainte in loc de action
+        #     self.rollout_buffer.logprobs.append(log_prob)
+        #     print("predict() self.rollout_buffer.logprobs", log_prob, self.rollout_buffer.logprobs)
 
         return action, log_prob #FM-intoarce  log_prob in loc de state
 
-    def train(self):
+    def train(self): #update din echeveria
         all_rewards = []
         discounted_reward = 0
         for reward, done in zip(reversed(self.rollout_buffer.rewards), reversed(self.rollout_buffer.dones)):
@@ -288,24 +313,30 @@ class PPOGNN:
 
         # convert list to tensor
         batch_size = self.batch_size
+
+        #print("!!!!!!!!!batch_size", batch_size, len(self.rollout_buffer.states))
         batches = DataLoader(self.rollout_buffer.states, batch_size=batch_size)
+        #print("self.rollout_buffer.action", len(self.rollout_buffer.actions))
         all_actions = torch.squeeze(torch.stack(self.rollout_buffer.actions, dim=0)).detach().to(device)
         all_logprobs = torch.squeeze(torch.stack(self.rollout_buffer.logprobs, dim=0)).detach().to(device)
 
         all_losses = 0
         all_losses_cri = 0
-
-        #print(all_rewards)
         # Optimize policy for N epochs
-        i=0
-        for _ in range(self.n_epochs):
+        for epoch in range(self.n_epochs):
+            #print("epoch", epoch)
             # Evaluating old actions and values
+            i = 0 #MUTAT i=0 aici ca e sinc cu buffer, de ce ar tine de epoch
+            #print("batches", len(batches), "i=", i)
             for batch in batches:
+                # print("!!!batch", batch, )
                 batch = batch.to(device)
                 old_actions = all_actions[i*batch_size: (i+1)*batch_size]
                 old_logprobs = all_logprobs[i*batch_size: (i+1)*batch_size]
                 rewards = all_rewards[i*batch_size: (i+1)*batch_size]
-                logprobs, state_values, dist_entropy = self.policy.evaluate(batch, old_actions)
+                # print("i*batch_size: (i+1)*batch_size", i*batch_size, (i+1)*batch_size)
+                # print("all_actions",old_actions, all_actions, all_actions.shape)
+                logprobs, state_values, dist_entropy = self.policy.evaluate(batch, old_actions) #FM-roxana
                 # match state_values tensor dimensions with rewards tensor
                 state_values = torch.squeeze(state_values)
 
@@ -362,6 +393,7 @@ class PPOGNN:
 
         """
         # torch.save(self.policy_old.state_dict(), checkpoint_path)
+        print("save() function called {file}.pkl")
 
         params_dict = self.__dict__.copy()
         del params_dict['logger']
@@ -388,16 +420,33 @@ class PPOGNN:
         # self.policy_old.load_state_dict(torch.load(checkpoint_path, map_location=lambda storage, loc: storage))
         # self.policy.load_state_dict(torch.load(checkpoint_path, map_location=lambda storage, loc: storage))
 
+        print("PPOGNN-load()")
         with open(f"{file}.pkl", "rb") as handle:
             data = pickle.load(handle)
 
+        print("PPOGNN-load() data")
         #
         env = data["params"]["env"]
+        print("PPOGNN-load() 1before model update")
+        print("PPOGNN-load()",data.keys(), env.tasks)
+
+
+        for task in env.tasks:
+            print("load() task", task.task_id, task.done)
+
+
+        print("PPOGNN-load()", config)
+
+
         metadata = env.get_metadata()
+        print("PPOGNN-load() 2before model update")
 
         # create PPO object, commit necessary parameters. Update remaining parameters
         model = cls(env=env, config=config, logger=logger, metadata=metadata)
+        print("PPOGNN-load() before model update")
         model.__dict__.update(data["params"])
+
+        print("PPOGNN-load() model", model)
 
         model.policy_old.load_state_dict(data["policy_old"])
         model.policy.load_state_dict(data["policy_old"])
@@ -416,6 +465,7 @@ class PPOGNN:
 
         """
         instances = 0
+        enter_train = 0
 
         # iterate over n episodes = the agents has n episodes to interact with the environment
         for _ in range(total_instances):
@@ -423,16 +473,25 @@ class PPOGNN:
             done = False
             instances += 1
             print('instance nr', instances)
+             #salvez o copie a problemei de la care pornesc
 
             # run agent on env until done
             while not done:
-                action, prob = self.predict(state=state, deterministic=True)
-                new_state, reward, done, info = self.env.step(action)
-                self.num_timesteps += 1
-                self.rollout_buffer.rewards.append(reward)
-                self.rollout_buffer.dones.append(done)
+                initial_state = copy.deepcopy(state)
+                #print("before predict for instance", instances, state)
 
-                self.rollout_buffer.store_memory(state, action, prob, reward, done)
+                action, prob = self.predict(state=state, deterministic=True)
+                #print("after predict for instance", instances, state)
+                new_state, reward, done, info = self.env.step(action)
+                #print("after step for instance", instances, state, '\n   new state', new_state)
+                self.num_timesteps += 1
+                #FM de două ori
+                # self.rollout_buffer.rewards.append(reward)
+                # self.rollout_buffer.dones.append(done)
+
+                #print("learn(): store prob_learn in state memory", prob, self.rollout_buffer.logprobs)
+                #print("sate vs initial_state", state, initial_state)
+                self.rollout_buffer.store_memory(initial_state, action, prob, reward, done)#FM - altfel face copie dupa prima iteratie si nu e ok, se modifica ceva in nr de muchii
 
                 # call intermediate_test on_step
                 if intermediate_test:
@@ -451,19 +510,31 @@ class PPOGNN:
 
                     return None
 
-                # update every n rollout_steps
-                if self.num_timesteps % self.rollout_steps == 0:
-                    # predict the next reward, needed for the advantage computation of the last collected step
-                    with torch.no_grad():
-                        _, _ = self.predict(state=new_state, deterministic=True)
-
-                    # train networks
-                    self.train()
-
-                    # reset buffer to continue collecting rollouts
-                    self.rollout_buffer.reset()
-
                 state = new_state
+
+            # print("self.num_timesteps  self.rollout_steps", self.num_timesteps, self.rollout_steps)
+            # print("...train() function was called", enter_train, 'times')
+            # update every n rollout_steps
+            self.rollout_steps = 10
+            if instances % self.rollout_steps == 0:
+                #print("self.num_timesteps  self.rollout_steps", self.num_timesteps , self.rollout_steps)
+                # predict the next reward, needed for the advantage computation of the last collected step
+                #print("state to  predict",initial_state)#FM: de ce noua starea aceea nu mai are nimic in ea new_state)
+                #print("..before predict filtrat", state[('machine', 'exec', 'operation')].mask.shape)
+                # with torch.no_grad(): #ei nu fac predic fac direct update la rewards
+                #     #_, _ = self.predict(state=new_state, deterministic=True)
+                #     _, _ = self.predict(state=state, deterministic=True)
+
+                #print("..after predict filtrat", state[('machine', 'exec', 'operation')].mask.shape)
+                # train networks
+                print("train(): -- roolout buffer", len(self.rollout_buffer.states))
+                self.train() #este partea de update de la echeveria
+                enter_train+=1
+
+                # reset buffer to continue collecting rollouts
+                #self.rollout_buffer.reset()#chiar trebuie e facut in train??
+
+
 
                 # print('state', state, state['operation', 'prec', 'operation'].edge_index)
 
@@ -493,4 +564,5 @@ class PPOGNN:
                 'results_on_train_dataset/num_timesteps': self.num_timesteps
             }
         )
+        print("...train() function was called", enter_train, 'times')
         self.logger.dump()

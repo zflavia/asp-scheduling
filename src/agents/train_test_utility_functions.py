@@ -23,11 +23,12 @@ from src.agents.reinforcement_learning.ppo import PPO
 from src.agents.reinforcement_learning.dqn import DQN
 from src.agents.reinforcement_learning.ppo_masked import MaskedPPO
 from src.agents.reinforcement_learning.ppo_gnn import PPOGNN
+from src.agents.gp.gp_alg import GP
 
 
 # Constants
 TIMESTAMP: str = f"{datetime.datetime.now().strftime('%d%m%Y%H%M')}"
-AGENT_DICT: Dict[str, str] = {'ppo_masked': 'MaskedPPO', 'ppo': 'PPO', 'dqn': 'DQN', 'ppo_gnn': 'PPOGNN'}
+AGENT_DICT: Dict[str, str] = {'ppo_masked': 'MaskedPPO', 'ppo': 'PPO', 'dqn': 'DQN', 'ppo_gnn': 'PPOGNN', 'gp': 'GP'}
 TRAIN_ALGORITHM_PARAM: str = 'algorithm'
 TEST_ALGORITHM_PARAM: str = 'test_algorithm'
 

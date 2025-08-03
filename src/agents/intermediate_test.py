@@ -50,9 +50,9 @@ class IntermediateTest:
 
         """
         if (num_timesteps - self.last_time_trigger) >= self.n_test_steps:
-#             print('#'*5)
-#             print('#'*5, f'INTERMEDIATE TEST after step {num_timesteps} and after {instances} instances... ')
-#             print('#' * 5)
+            print('#'*5)
+            print('#'*5, f'INTERMEDIATE TEST after step {num_timesteps} and after {instances} instances... ')
+            print('#' * 5)
 
             # safe recent model as comparison for the current optimum
             compare_path = ModelHandler.get_compare_path(self.env_config)

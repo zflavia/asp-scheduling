@@ -7,10 +7,10 @@ sp_type: asp
 # (R)   [String]  RL algorithm you want to use - This template is for PPO
 algorithm: ppo_gnn
 # (R)   [string]  Path to the file with generated data that to be used for training
-instances_file: asp/config_ASP_TUBES_ORIGINAL_GNN.pkl
+instances_file: asp/config_ASP_TUBES_ORIGINAL_GNN_train.pkl
 # (O)   [string]  The finished model is saved under this name. Alternatively set to <automatic>, then it will be
                   # replaced with the current DayMonthYearHourMinute
-saved_model_name: ASP_TUBES_ORIGINAL_GNN
+saved_model_name: ASP_TUBES_ORIGINAL_GNN_model
 # (R)   [int]     Seed for all pseudo random generators (random, numpy, torch)
 seed: 0
 # (O)   [bool]    Bool, if the train-test-split of instances should remain the same (1111) and be independent of the
@@ -28,14 +28,14 @@ wandb_mode: 0
 wandb_project: ppo_test
 
 # --- PPO parameter ---
-# (O)   [int]     Number of steps collected before PPO updates the policy again
-rollout_steps: 2048
+# (O)   [int]     Number of steps collected before PPO updates the policy again #2048 -stores something in learn
+rollout_steps: 20
 # (O)   [float]   Factor to discount future rewards
 gamma: 0.99
-# (O)   [int]     Number of epochs the network gets fed with the whole rollout data, when training is triggered
+# (O)   [int]  putine epoci -  Number of epochs the network gets fed with the whole rollout data, when training is triggered
 n_epochs: 5
 # (O)   [int]     Batch size into which the rollout data gets split
-batch_size: 256
+batch_size: 10
 # (O)   [float]   Range of the acceptable deviation between the policy before and after training
 clip_range: 0.2
 # (O)   [float]   Entropy loss coefficient for the total loss calculation
@@ -54,7 +54,7 @@ value_layer:  [ 256, 256 ]
 value_activation: 'Tanh' #'ReLU'
 # (R)   [int]     Maximum number of instances shown to the agent. Limits the training process. Note that instances may be
                   # multiple times, if total_instances is larger than the number of generated instances
-total_instances: 2000
+total_instances: 200
 # (R)   [int]     Maximum number of steps that the agent can interact with the env. Limits the training process
 total_timesteps: 3_000_000
 # (R)   [float]   Range between 0 and 1. How much (percentually) of the generated data will be used for training.
