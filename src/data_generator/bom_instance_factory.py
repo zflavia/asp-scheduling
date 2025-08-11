@@ -10,6 +10,7 @@ import os
 import json
 from datetime import datetime
 import random
+from pathlib import Path
 
 # Config and data handling imports
 from src.utils.file_handler.config_handler import ConfigHandler
@@ -84,6 +85,7 @@ def get_job_deadline(start_date_str, delivery_date_str):
 
 def load_bom_files(input_directory, similar_instances_number, should_modify_instances, should_multiply_quantity_to_execution_times):
     instance_list: List[List[Task]] = []
+    instance_name_list =[]
 
     # List all files in the directory
     files = os.listdir(input_directory)
@@ -109,6 +111,7 @@ def load_bom_files(input_directory, similar_instances_number, should_modify_inst
                     if task.parent_index:
                         task.parent_index = tasks_mapping_ids[task.parent_index]
                 instance_list.append(sorted_top)
+                instance_name_list.append(Path(f.name).stem)
 
     original_list_length = len(instance_list)
     if should_modify_instances:
@@ -169,8 +172,9 @@ def load_bom_files(input_directory, similar_instances_number, should_modify_inst
                 task.recalculate_execution_times_setup()
 
             instance_list.append(new_instance)
+            instance_name_list.append(f'{instance_name_list[instance_index]}_similar_instances_{i}')
 
-    return instance_list
+    return instance_list, instance_name_list
 
 def main(config_file_path, external_config=None):
 
@@ -178,7 +182,7 @@ def main(config_file_path, external_config=None):
     current_config: dict = ConfigHandler.get_config(config_file_path, external_config)
 
     # Create instance list
-    instance_list: List[List[Task]] = load_bom_files(
+    instance_list, instance_name_list = load_bom_files(
         current_config.get('input_directory'),
         current_config.get('num_similar_instances'),
         current_config.get('should_modify_instances'),
@@ -194,8 +198,9 @@ def main(config_file_path, external_config=None):
     SPFactory.compute_and_set_hashes(instance_list)
 
     # Write resulting instance data to file
+    data = {'instances' : instance_list, 'instances_names' :instance_name_list }
     if current_config.get('write_to_file', False):
-        DataHandler.save_instances_data_file(current_config, instance_list)
+        DataHandler.save_instances_data_file(current_config, data)
 
 
 def get_parser_args():

@@ -39,7 +39,7 @@ crossover_probability: 0.5
 # (O)   [float]   Mutation probability between [0,1]
 mutation_probability: 0.3
 # (O)   [int]   Stopping criteria: Generations number
-generations_number: 10
+generations_number: 50
 
 
 # --- env (Environment) parameter ---

@@ -20,7 +20,7 @@ saved_model_name: gp_best_rule_5files
 experiment_save_path: models
 
 # (R)   [int]     Seed for all pseudo random generators (random, numpy, torch)
-seed: 10
+seed: 0
 
 #--- DEAP parameter ---
 # (O)   [int]     Number of paraller processces for DEAP
@@ -32,13 +32,13 @@ population_size: 10
 # (O)   [int]   ......
 halloffame_size: 1
 # (O)   [int]     Maximum depth of a tree
-gp_tree_max_depth: 7
+gp_tree_max_depth: 3
 # (O)   [float]   Crossover probability between [0,1]
 crossover_probability: 0.5
 # (O)   [float]   Mutation probability between [0,1]
 mutation_probability: 0.3
 # (O)   [int]   Stopping criteria: Generations number
-generations_number: 10
+generations_number: 50
 
 
 # --- env (Environment) parameter ---

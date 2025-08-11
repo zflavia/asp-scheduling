@@ -17,9 +17,6 @@ class EnvGP():
         self.instances_no = len(data)
         self.current_instances: List[List[Task]] = data
 
-        for d in data:
-            print("!!!!!!",d);
-
         #current_instance
         self.current_instance_index = -1
 
@@ -37,10 +34,9 @@ class EnvGP():
     def get_next_instance(self):
 
         self.done = False
-
         self.current_instance_index += 1
 
-        self.operations = self.current_instances[self.current_instance_index]
+        self.operations = self.current_instances[self.current_instance_index].copy()
 
         self.no_operations = len(self.operations)
         self.no_machines   = len(self.operations[0].machines)
@@ -61,6 +57,10 @@ class EnvGP():
         self.max_deadline = 0
         for op_idx, operation in enumerate(self.operations):
             #print(operation.task_index, operation.parent_index, operation.machines)
+
+            operation.done = False #need because GP evaluates multiple times an instance
+            operation.last_child_scheduled_finished = 0
+
             self.index_operation[operation.task_id] = op_idx
             self.max_deadline = operation.deadline if operation.deadline > self.max_deadline else self.max_deadline
             # operation/task status (-1 - unscheduled, 0 - scheduled,  1 - redy)
@@ -69,8 +69,11 @@ class EnvGP():
             for m_idx, elibigle_machine in enumerate(operation.machines):
                 if elibigle_machine:
                     self.machine_operation_no[m_idx] += 1
+
         #print("new instance", self.current_instance_index, "op no", self.no_operations, "m no", self.no_machines, "deadline",  self.max_deadline,self.current_instances[self.current_instance_index])
         #print("!!!get_next_instance-end", self.no_operations, self.no_machines,  self.max_deadline)
+        # print(" self.operations_redy", self.operations_redy)
+        # print("index_operation", self.index_operation)
 
     def get_heppler_informations(self):
         """
@@ -158,6 +161,7 @@ class EnvGP():
 
         # select pair
         ready_pairs.sort(reverse=True)  # higher score first
+
         _, selected_operation_idx, selected_machine_idx = ready_pairs.pop(0)
         self.action_history.append((selected_operation_idx, selected_machine_idx))
         return (selected_operation_idx, selected_machine_idx)
@@ -169,6 +173,7 @@ class EnvGP():
         :param args:
         :return:
         '''
+
         selected_operation_idx = action[0]
         selected_machine_idx = action[1]
 
@@ -185,13 +190,14 @@ class EnvGP():
         selected_operation.selected_machine = selected_machine_idx
         selected_op_parent_idx = selected_operation.parent_index
         if selected_op_parent_idx is not None:
-            self.operations[selected_op_parent_idx].last_child_scheduled_finished = \
-                max(completion_time, self.operations[selected_op_parent_idx].last_child_scheduled_finished)
-
-
-        # add parent operation to available operations list
-        if selected_op_parent_idx is not None:
             selected_op_parent = self.operations[selected_op_parent_idx]
+
+            #updare parent start time
+            selected_op_parent.last_child_scheduled_finished = \
+                max(completion_time, selected_op_parent.last_child_scheduled_finished)
+
+
+            # add parent operation to available operations list
             parent_ready = True
             for op_idx in selected_op_parent.children:
                 if not self.operations[op_idx].done:
@@ -199,6 +205,7 @@ class EnvGP():
             if parent_ready:
                 self.operations_redy[self.index_operation[selected_op_parent.task_id]] = 1
 
+        # print(' self.operations_redy',self.operations_redy)
         # print('Scheduled operation: ', selected_operation_idx, self.operations[selected_operation_idx].started,
         #       self.operations[selected_operation_idx].finished, self.operations[selected_operation_idx].selected_machine,
         #       self.operations[selected_operation_idx].done,self.operations[selected_operation_idx].parent_index)
@@ -208,7 +215,7 @@ class EnvGP():
         # update machines
         self.machines[selected_machine_idx].add_last_interval(self.operations[selected_operation_idx])
 
-        # update internal stuctures
+        # update internal structures
         self.machine_ready_time[selected_machine_idx] = completion_time
         self.operations_redy[selected_operation_idx] = 0
         self.no_uncheduled_operations -= 1
@@ -231,6 +238,7 @@ class EnvGP():
             #print("evaluate_instance", self.current_instance_index)
             #if self.current_instance_index != 0: #needed because for test.py the first instance need to be load in init function
             self.get_next_instance()
+            #print("machine time:",self.machine_ready_time)
 
             while not self.done:
 

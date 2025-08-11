@@ -244,7 +244,8 @@ def test_model(env_config: Dict, data: List[List[Task]], logger: Logger, plot: b
 
 
 def test_model_and_heuristic(config: dict, model, data_test: List[List[Task]], logger: Logger,
-                             plot_ganttchart: bool = False, log_episode: bool = False, binary_features = None, run_heuristics = None) -> dict:
+                             plot_ganttchart: bool = False, log_episode: bool = False, binary_features = None,
+                             run_heuristics = None, data_test_names = []) -> dict:
     """
     Test model and agent_heuristics len(data) times and returns results
 
@@ -254,6 +255,7 @@ def test_model_and_heuristic(config: dict, model, data_test: List[List[Task]], l
     :param logger: Logger object
     :param plot_ganttchart: Plot a gantt chart of all tests
     :param log_episode: If true, calls the log function to log episode results as table
+    :param data_test_names: names of the files with test instances
 
     :return: Dict with evaluation_result dicts for the agent and all heuristics which were tested
 
@@ -267,7 +269,7 @@ def test_model_and_heuristic(config: dict, model, data_test: List[List[Task]], l
     # # test agent
     # start_time = datetime.now()
     res = test_model(model=model, **test_kwargs)
-    results.update({'agent': res})
+    results.update({'agent': res, 'test-data-file-names':data_test_names})
     # end_time = datetime.now()
     # # Calculate the timespan in milliseconds
     # timespan = (end_time - start_time).total_seconds() * 1000
@@ -319,7 +321,9 @@ def main(external_config=None):
 
     # get config and data
     config = load_config(config_file_path, external_config)
-    data = load_data(config) #load all test instances
+    instances_info = load_data(config)
+    data = instances_info['instances'] #load all test instances
+    data_names = instances_info['instances_names']
 
     # Random seed for numpy as given by config
     np.random.seed(config['seed'])
@@ -338,7 +342,7 @@ def main(external_config=None):
     #print("main() model", model)
     print("main7")
     run_heuristics = False
-    results = test_model_and_heuristic(config=config, model=model, data_test=data,
+    results = test_model_and_heuristic(config=config, model=model, data_test=data, data_test_names=data_names,
                                        plot_ganttchart=parse_args.plot_ganttchart, logger=logger, binary_features=binary_features, run_heuristics=run_heuristics)
     print(results)
     plt.show()

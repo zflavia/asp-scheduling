@@ -6,7 +6,7 @@ sp_type: asp
 # (R)   [string]  GP algorithm you want to use
 algorithm: gp
 # (R)   [string]  Path to the file with generated data that to be used for test
-instances_file: asp/config_ASP_variants_tubes_test_2files.pkl
+instances_file: asp/config_ASP_variants_tubes_test.pkl
 # (R)   [string]  Test Environment: Should be the same the agent was trained on
 environment: env_gp
 # (O)   [string]  Name of the model you want to load for testing

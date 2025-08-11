@@ -53,10 +53,10 @@ class GP:
 
     def config_gp(self, pset):
 
-        if not hasattr(creator, "FitnessMin"):
-            creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
-        if not hasattr(creator, "Individual"):
-            creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin, pset=pset)
+        #if not hasattr(creator, "FitnessMin"):
+        creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
+        #if not hasattr(creator, "Individual"):
+        creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin, pset=pset)
 
         toolbox = base.Toolbox()
         toolbox.register("expr", gp.genHalfAndHalf, pset=pset, min_=1, max_=3)
@@ -112,8 +112,8 @@ class GP:
 
 
         stats_fit = tools.Statistics(lambda ind: ind.fitness.values[0] if ind.fitness.valid else float('inf'))
-        stats_fit.register("avg", safe_avg)
-        stats_fit.register("std", safe_std)
+        # stats_fit.register("avg", safe_avg)
+        # stats_fit.register("std", safe_std)
         stats_fit.register("min", safe_min)
         stats_fit.register("max", safe_max)
 
@@ -126,11 +126,11 @@ class GP:
         # `min` va alege individul bazat pe `ind.fitness`
         stats_best_ind_obj = tools.Statistics(key=lambda ind: ind)
         stats_best_ind_obj.register("best", lambda pop_list: min(pop_list, key=lambda
-            ind: ind.fitness if ind.fitness.valid else float('inf')))
+            ind: ind.fitness.values[0] if ind.fitness.valid else float('inf')))
 
         mstats = tools.MultiStatistics(fitness=stats_fit,
-                                            size=stats_size,
-                                            xbest_individual=stats_best_ind_obj
+                                            #size=stats_size,
+                                            xbest_ind=stats_best_ind_obj
                                             )#tools.MultiStatistics(fitness=stats_fit)
 
         return toolbox, mstats
@@ -140,6 +140,8 @@ class GP:
     def multi_instance_fitness(self, individual: gp.PrimitiveTree,
                            toolbox: base.Toolbox,
                            ) -> Tuple[float,]:
+        # if len(self.hof):
+        #     print('best so far',self.hof[0], len(self.hof))
         #print("multi_instance_fitness() - start_eval", individual )
         if individual is None:
             return (float('inf'),)
@@ -149,6 +151,7 @@ class GP:
         except Exception as e:
             return (float('inf'),)
 
+        #print(individual)
         total_combined_score = 0.0
         num_valid_instances_evaluated = 0
         self.env.current_instance_index = -1 #
@@ -156,7 +159,7 @@ class GP:
         for inst_no in range(self.env.instances_no):
             try:
                 makespan = self.env.evaluate_instance(priority_func)
-                #print("makespan", makespan, "inst_no", inst_no)
+                #print(makespan, end="+")
             except Exception as e_eval:
                 print("EROARE EVAL: ", e_eval)
                 makespan = float('inf')
@@ -167,7 +170,7 @@ class GP:
         if num_valid_instances_evaluated == 0:
             print("Infinit!!!!!!!!!!!!")
             return (float('inf'),)
-        #print("makespan mediu individ", total_combined_score , num_valid_instances_evaluated)
+        #print(" makespan mediu individ", total_combined_score / num_valid_instances_evaluated)
         return (total_combined_score / num_valid_instances_evaluated,)
 
     def learn(self, total_instances: int, total_timesteps: int, intermediate_test = None) -> None:
@@ -220,30 +223,9 @@ class GP:
 
         print("\nGenetic program finished.")
 
-        best_ind = self.hof[0]
-        # priority_func = toolbox.compile(expr=best_ind)
-        # test_env.current_instance_index = -1
-        # total = 0
-        # for _ in range(test_env.instances_no):
-        #     score = test_env.evaluate_instance(priority_func)
-        #     print("Score:", score)
-        #     total += score
-        #
-        # avg_score = total / test_env.instances_no
-        # print("Average test performance:", avg_score)
-
-        print("Best individual:")
-        print(best_ind)
         self.best_ind = self.hof[0]
-
-
-        #save (serialize) best element in .pkl files
-        # best_expresion_save_path =
-        # with open(f'{best_expresion_save_path}.pkl', 'wb') as f:
-        #     pickle.dump(best_expresion_save_path, f)
+        print("Best individual:",self.best_ind)
         self.save(ModelHandler.get_best_model_path(self.env_config))
-
-        # return hof
 
     @classmethod
     def config_gp_expression(cls) -> base.Toolbox:
