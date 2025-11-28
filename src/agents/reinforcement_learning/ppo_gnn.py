@@ -40,7 +40,9 @@ class RolloutBuffer:
         self.dones = []
 
         if buffer_size % batch_size != 0:
+            print("buffer_size",buffer_size, "batch_size", batch_size, buffer_size % batch_size)
             raise TypeError("rollout_steps has to be a multiple of batch_size")
+
         self.buffer_size = buffer_size
         self.batch_size = batch_size
 
@@ -84,7 +86,8 @@ class RolloutBuffer:
 class GAT(torch.nn.Module):
     def __init__(self, hidden_layers = 8, out_channels = 8, num_layers = 2, heads = 2):
         super().__init__()
-        self.lin1 = Linear(-1, 8)
+        #Linear(-1,out_channels) - initialized lazily in case it is given as -1
+        self.lin1 = Linear(-1, 8) #in_dim - nr of feature per node
         #self.lin2 = Linear(-1, out_channels)
         self.s = torch.nn.Softmax(dim=0)
         self.tanh = nn.Tanh()
@@ -92,7 +95,10 @@ class GAT(torch.nn.Module):
 
         self.convs = torch.nn.ModuleList()
         for _ in range(num_layers):
-            conv = GATv2Conv(-1, hidden_layers, add_self_loops=False, edge_dim=3, heads = heads) # TODO: instead of 5 should be the number of features per our edge features (3-4?)
+            #edge_dim - numar features pe muchie
+            #!!!!in_channels=hidden_layers,
+            conv = GATv2Conv(-1, hidden_layers, add_self_loops=False,
+                             edge_dim=3, heads = heads) # : instead of 5 should be the number of features per our edge features (3-4?)
             self.convs.append(conv)
 
     def forward(self, x, edge_index, edge_attr_dict):
@@ -103,7 +109,8 @@ class GAT(torch.nn.Module):
         x = self.tanh(x)
         for conv in self.convs:
             x = conv(x, edge_index, edge_attr_dict)
-        x = self.tanh(x)
+            #x = self.tanh(x) - fiecare strat primește input normalizat în (-1, 1)
+        x = self.tanh(x) #straturile intermediare ar avea libertate mai mare, iar doar rezultatul final ar fi limitat.
         #x = self.lin2(x)
         return x
 
@@ -113,16 +120,19 @@ class Model(torch.nn.Module):
         self.actor = actor
         self.gnn = GAT(hidden_layers, out_channels, num_layers=num_layers, heads=heads)
         self.gnn = to_hetero(self.gnn, metadata=metadata, aggr='mean')
-        self.lin3 = Linear(-1, 1)
-        self.lin4 = Linear(-1, hidden_layers)
-        self.lin5 = Linear(-1, hidden_layers)
-        self.lin6 = Linear(-1, 1)
+        self.lin3 = Linear(-1, 1) #utilizat de actor out_features=1; in_feat = edge_no (machine, exec, op)
+        self.lin4 = Linear(-1, hidden_layers) # - nu sunt utilizate
+        self.lin5 = Linear(-1, hidden_layers) # - nu sunt utilizate
+        self.lin6 = Linear(-1, 1) #utilizat de critic out_features=1; in_feature = op_no?
         self.tanh = nn.Tanh()
 
     def forward(self, data: HeteroData):
+        # data: HeteroData
         res = self.gnn(data.x_dict, data.edge_index_dict, data.edge_attr_dict)
+
         if self.actor:
-            x_src, x_dst = res['machine'][data.edge_index_dict[('machine','exec','operation')][0]], res['operation'][data.edge_index_dict['machine','exec','operation'][1]]
+            x_src, x_dst = (res['machine'][data.edge_index_dict[('machine','exec','operation')][0]],
+                            res['operation'][data.edge_index_dict['machine','exec','operation'][1]])
             edge_feat = torch.cat([x_src,  data.edge_attr_dict[('machine','exec','operation')], x_dst], dim=-1)
             res = self.lin3(edge_feat)
         else:
@@ -141,65 +151,49 @@ class ActorCritic(nn.Module):
         self.soft = torch.nn.Softmax(dim=0)
 
     def forward(self, state, deterministic: bool = True):
+        #scoruri brute pt fiecare actiune posibila
         action_probs = self.actor(state).T[0]
-        # print('self.action(state', self.actor(state) )
-        # print('action_probs_shape in forward before', action_probs.shape)
-        # print('action_probs in forward before', action_probs)
-        #print("forward() state[('machine','exec','operation')].mask", state[('machine','exec','operation')].mask.shape)
+        #Maschează acțiunile nefezabile
         action_probs[state[('machine','exec','operation')].mask] = float("-inf")
+        #aplica soft-max
         action_probs = self.soft(action_probs)
-        # print('action_probs in forward after', action_probs)
-
-
+        #Creează o distribuție Categorical normalizată. Dacă o acțiune a primit -inf înainte de softmax → acum are probabilitatea 0.
         dist = Categorical(action_probs)
 
         if not deterministic:
+            #ia ia o acțiune proporțional cu probabilitatea
             action = dist.sample()
         else:
+            #ia acțiunea cu cea mai mare probabilitate
             action = torch.argmax(action_probs)
 
+        #Se obține log-probabilitatea acțiunii selectate
         log_prob = dist.log_prob(action)
-
-        # print('action in forward before detach', action)
 
         return action.detach(), log_prob.detach()
 
 
     def evaluate(self, state, action):
         action_probs = torch.Tensor([])
+        #calculează logit-urile (scorurile) pentru toate acțiunile posibile (de fapt pentru toate muchiile machine–operation).
         res = self.actor(state)
         action_logprobs = []
         dist_entropy = []
 
-        # print('evaluate() -state', state)
-        # print('evaluate() -action', action)
-        # print('evaluate() -state["machine"].batch', len(state["machine"].batch))
-        # print('evaluate() -state["operation"].batch', len(state["operation"].batch))
+        #row = index de machine, col = index de operation
         row, col = state[('machine', 'exec', 'operation')].edge_index
         batch_index = state["machine"].batch[row]
 
+        #state["operation"].batch[-1] - id-ul ultimului graf din bach,numărul de grafuri din batch (se adauga+1 deoarece numerotarea incepe de la 0)
+        for i in range(state["operation"].batch[-1]+1):
+            #logit-urile actorului pentru muchiile grafului i
+            action_probs = res[batch_index==i].T[0]
 
-        # print("evaluate() state[operation].batch", state["operation"].batch)
-        # print('evaluate() state["operation"].batch[-1]', state["operation"].batch[-1])
-        for i in range(state["operation"].batch[-1]+1): #FM de ce + 1 nu am atatea date - nu inteleg
-            action_probs = res[batch_index==i].T[0] #FM-eroare la roxana
-            #print("action_probs", action_probs)
-            # print("evaluate() action_probs", action_probs.shape)
-            # print("batch_index==i", batch_index==i)
-            # print("evaluate() batch_index", batch_index.shape, "i=", i)
-            # print("evaluate() state[('machine','exec','operation')].mask", len(state[('machine','exec','operation')].mask), state[('machine','exec','operation')].mask)
-            # print("evaluate() filtrat", state[('machine','exec','operation')].mask[batch_index==i])
+            #Masca acțiunile nefezabile pentru graful respectiv
             action_probs[state[('machine','exec','operation')].mask[batch_index==i]] = float("-inf")
             action_probs = self.soft(action_probs)
             dist = Categorical(action_probs)
-
-            # print("evaluate() action_logprobs", len(action_logprobs), action_logprobs)
-            # print("evaluate() action:",  action.shape, action,  'i=',i)
-            #if (len(action)==0): continue #FM- aici iasa din index e adaptare de la job la operatie probabil nu merge chiar asa de simplu initialse lua din batchul de joburi
-            # print("evaluate() dist", "action", action[i])
-            action_logprobs.append(dist.log_prob(action[i]))#FM se adauga de doaua ori se seteaza si in state_save()
-
-            # print("evaluate() action_logprobs", len(action_logprobs), action_logprobs)
+            action_logprobs.append(dist.log_prob(action[i]))#FM se adauga de doaua ori se seteaza si in state_save())
             dist_entropy.append(dist.entropy())
 
         action_logprobs = torch.stack(action_logprobs)
@@ -207,6 +201,8 @@ class ActorCritic(nn.Module):
 
         state_values = self.critic(state)
         state_values = global_mean_pool(state_values, state["operation"].batch)
+
+        #utile pt calcul: policy loss (folosind log_probs și avantaj); value loss (folosind state_values); entropy bonus (folosind dist_entropy)
         return action_logprobs, state_values, dist_entropy
 
 
@@ -220,7 +216,8 @@ class PPOGNN:
        | clip_range: Limitation for the ratio between old and new policy
        | batch_size: Size of batches which were sampled from the buffer and fed into the nets during training
        | n_epochs: Number of repetitions for each training iteration
-       | rollout_steps: Step interval within the update is performed. Has to be a multiple of batch_size
+       | rollout_episodes: Step interval within the update is performed. Has to be a multiple of batch_size
+       | n_episodes: episodes number of train function (it should be much larger than the number of instances in the environment
        """
 
         self.env = env
@@ -228,7 +225,13 @@ class PPOGNN:
         self.gae_lambda = config.get('gae_lambda', 0.95)
         self.clip_range = config.get('clip_range', 0.2)
         self.n_epochs = config.get('n_epochs', 0.5)
+
+        self.update_strategy = config.get('update_strategy', 'buffer_size')
+        self.total_instances = config.get('total_instances', 1000)
+        self.total_timesteps = config.get('total_timesteps',  3000000)
+        self.rollout_episodes = config.get('rollout_episodes', 5)
         self.rollout_steps = config.get('rollout_steps', 2048)
+
         self.ent_coef = config.get('ent_coef', 0.0)
         self.num_timesteps = 0
         self.n_updates = 0
@@ -240,6 +243,12 @@ class PPOGNN:
         self.hidden_layers = config.get('hidden_layers', 128)
         self.num_layers = config.get('num_layers', 2)
         self.heads = config.get('heads', 3)
+
+        #early stoppping
+        self.best_makespan = float('inf')
+        self.no_improve_counter = 0
+        self.patience =  config.get('early_stoppping_pacience', 10)
+
 
         # self.metadata = metadata
 
@@ -281,8 +290,8 @@ class PPOGNN:
 
         self.MseLoss = nn.MSELoss()
 
-    def xpredict(self, state = None, observation = None, deterministic: bool = True):
-        #este functia select_action
+    def predict(self, state = None, observation = None, deterministic: bool = True):
+        #este functia select_action() sau act() din alte implementari
         with torch.no_grad():
             state = self.env.normalize_state(state)
             state = state.to(device)
@@ -296,11 +305,13 @@ class PPOGNN:
 
         return action, log_prob #FM-intoarce  log_prob in loc de state
 
-    def train(self): #update din echeveria
+    def train(self):
+        #functia update() - din echeveria (implementarea buclei de update PPO)
         all_rewards = []
         discounted_reward = 0
+        #Calculul reward-urilor reduse (G_t= r_t + gama*G_{t+1}
         for reward, done in zip(reversed(self.rollout_buffer.rewards), reversed(self.rollout_buffer.dones)):
-            if done:
+            if done: #Când întâlnește un episod terminat (s-a generat o planificare completa)
                 discounted_reward = 0
             discounted_reward = reward + (self.gamma * discounted_reward)
             all_rewards.insert(0, discounted_reward)
@@ -311,20 +322,19 @@ class PPOGNN:
             all_rewards = (all_rewards - all_rewards.mean()) / (all_rewards.std() + 1e-7)
             #all_rewards = (2*(all_rewards + 2200)/(2200 + 1e-7 )-1).float()
 
-        # convert list to tensor
+        # Pregătirea batch-urilor
         batch_size = self.batch_size
-
-        #print("!!!!!!!!!batch_size", batch_size, len(self.rollout_buffer.states))
         batches = DataLoader(self.rollout_buffer.states, batch_size=batch_size)
-        #print("self.rollout_buffer.action", len(self.rollout_buffer.actions))
+
+        #old-policy
         all_actions = torch.squeeze(torch.stack(self.rollout_buffer.actions, dim=0)).detach().to(device)
         all_logprobs = torch.squeeze(torch.stack(self.rollout_buffer.logprobs, dim=0)).detach().to(device)
 
         all_losses = 0
         all_losses_cri = 0
-        # Optimize policy for N epochs
+        # Optimize policy for N epochs - Face mai multe treceri (epochs) peste aceleași date
         for epoch in range(self.n_epochs):
-            #print("epoch", epoch)
+
             # Evaluating old actions and values
             i = 0 #MUTAT i=0 aici ca e sinc cu buffer, de ce ar tine de epoch
             #print("batches", len(batches), "i=", i)
@@ -334,25 +344,22 @@ class PPOGNN:
                 old_actions = all_actions[i*batch_size: (i+1)*batch_size]
                 old_logprobs = all_logprobs[i*batch_size: (i+1)*batch_size]
                 rewards = all_rewards[i*batch_size: (i+1)*batch_size]
-                # print("i*batch_size: (i+1)*batch_size", i*batch_size, (i+1)*batch_size)
-                # print("all_actions",old_actions, all_actions, all_actions.shape)
+
+                #Reevaluarea politicii și a criticului
                 logprobs, state_values, dist_entropy = self.policy.evaluate(batch, old_actions) #FM-roxana
-                # match state_values tensor dimensions with rewards tensor
                 state_values = torch.squeeze(state_values)
 
-                # Finding the ratio (pi_theta / pi_theta__old)
+                #Calculul raportului PPO și al avantajelor
+                ## Finding the ratio (pi_theta / pi_theta__old)
                 ratios = torch.exp(logprobs - old_logprobs.detach())
-                # Finding Surrogate Loss
+                ## Finding Surrogate Loss
                 advantages = rewards - state_values.detach()
 
+                #Critic loss + Surrogate loss pentru actor (PPO clip)
                 all_losses_cri += 0.5*self.MseLoss(state_values, rewards).mean()
                 surr1 = ratios * advantages
                 surr2 = torch.clamp(ratios, 1-self.clip_range, 1+self.clip_range) * advantages
                 # final loss of clipped objective PPO
-
-                #print("-torch.min(surr1, surr2)", -torch.min(surr1, surr2))
-                #print("- 0.01*dist_entropy", - 0.01*dist_entropy)
-                #print("0.5*self.MseLoss(state_values, rewards)", 0.5*self.MseLoss(state_values, rewards))
                 loss = -torch.min(surr1, surr2) + 0.5*self.MseLoss(state_values, rewards) - 0.01*dist_entropy
 
                 # take gradient step
@@ -372,6 +379,10 @@ class PPOGNN:
         # clear buffer
         self.rollout_buffer.reset()
 
+
+        print('agent_training/loss', float(all_losses))
+        print( 'agent_training/actor_loss', float(all_losses)/(i*self.n_epochs))
+        print('agent_training/critic_loss', float(all_losses_cri)/(i*self.n_epochs))
         self.logger.record(
             {
                 'agent_training/n_updates': self.n_updates,
@@ -464,45 +475,35 @@ class PPOGNN:
         :param intermediate_test: (IntermediateTest) intermediate test object. Must be created before.
 
         """
-        instances = 0
+        #Funcția learn este  antrenare RL: face loop peste instanțe de FJSP, colectează experiență
+        # (state–action–reward), o pune în rollout_buffer și, din când în când, cheamă self.train() ca să facă update agent.
         enter_train = 0
 
+        print("total_instances", total_instances, "self.total_instances", self.total_instances)
         # iterate over n episodes = the agents has n episodes to interact with the environment
-        for _ in range(total_instances):
+        for episode in range(self.total_instances): #Fiecare instanță corespunde unui episod: o planificare completă FJSP.
             state = self.env.reset()
             done = False
-            instances += 1
-            print('instance nr', instances)
-             #salvez o copie a problemei de la care pornesc
 
             # run agent on env until done
             while not done:
                 initial_state = copy.deepcopy(state)
-                #print("before predict for instance", instances, state)
-
-                action, prob = self.predict(state=state, deterministic=True)
-                #print("after predict for instance", instances, state)
+                action, prob = self.predict(state=state, deterministic=True) #agentPPO.act(state)
                 new_state, reward, done, info = self.env.step(action)
-                #print("after step for instance", instances, state, '\n   new state', new_state)
                 self.num_timesteps += 1
-                #FM de două ori
-                # self.rollout_buffer.rewards.append(reward)
-                # self.rollout_buffer.dones.append(done)
-
-                #print("learn(): store prob_learn in state memory", prob, self.rollout_buffer.logprobs)
-                #print("sate vs initial_state", state, initial_state)
+                #Stocarea tranziției în rollout buffer
                 self.rollout_buffer.store_memory(initial_state, action, prob, reward, done)#FM - altfel face copie dupa prima iteratie si nu e ok, se modifica ceva in nr de muchii
 
-                # call intermediate_test on_step
-                if intermediate_test:
-                    intermediate_test.on_step(self.num_timesteps, instances, self)
+                # #call intermediate_test on_step - da eroare de verificat ce nu merge
+                # if intermediate_test:
+                #     intermediate_test.on_step(self.num_timesteps, episode, self)
 
                 # break learn if total_timesteps are reached
                 if self.num_timesteps >= total_timesteps:
                     print("total_timesteps reached")
                     self.logger.record(
                         {
-                            'results_on_train_dataset/instances': instances,
+                            'results_on_train_dataset/instances': episode,
                             'results_on_train_dataset/num_timesteps': self.num_timesteps
                         }
                     )
@@ -510,44 +511,38 @@ class PPOGNN:
 
                     return None
 
+                if self.update_strategy == 'buffer_size' and self.num_timesteps % self.rollout_steps == 0:
+                    print("train(): -- rollout buffer size", len(self.rollout_buffer.states))
+                    self.train()  # este partea de update de la echeveria - agentPPO.update
+                    enter_train += 1
+
                 state = new_state
 
-            # print("self.num_timesteps  self.rollout_steps", self.num_timesteps, self.rollout_steps)
-            # print("...train() function was called", enter_train, 'times')
-            # update every n rollout_steps
-            self.rollout_steps = 10
-            if instances % self.rollout_steps == 0:
-                #print("self.num_timesteps  self.rollout_steps", self.num_timesteps , self.rollout_steps)
-                # predict the next reward, needed for the advantage computation of the last collected step
-                #print("state to  predict",initial_state)#FM: de ce noua starea aceea nu mai are nimic in ea new_state)
-                #print("..before predict filtrat", state[('machine', 'exec', 'operation')].mask.shape)
-                # with torch.no_grad(): #ei nu fac predic fac direct update la rewards
-                #     #_, _ = self.predict(state=new_state, deterministic=True)
-                #     _, _ = self.predict(state=state, deterministic=True)
-
-                #print("..after predict filtrat", state[('machine', 'exec', 'operation')].mask.shape)
+            #dupa 10 episoade (instante planificate complet se chema train care: calculează discounted rewards,
+            # optimizează actorul + criticul (PPO), golește buffer-ul, copiază policy → policy_old.
+            # !!update-ul se face după ce ai colectat X tranziții (state, action, reward), nu după episoade.
+            # !!se poate realiza in 2 moduri dupa numarul de episoade (conform chatgpt intre 5-10 instante)
+            # !!sau dupa numarul de trazitii (1000–3000);
+            #self.rollout_steps = 10
+            if self.update_strategy == 'episodes_number' and episode % self.rollout_episodes == 0:
                 # train networks
-                print("train(): -- roolout buffer", len(self.rollout_buffer.states))
-                self.train() #este partea de update de la echeveria
+                print("train(): -- rollout buffer", len(self.rollout_buffer.states))
+                self.train() #este partea de update de la echeveria - agentPPO.update
                 enter_train+=1
 
-                # reset buffer to continue collecting rollouts
-                #self.rollout_buffer.reset()#chiar trebuie e facut in train??
+            #print('Is the schedule valid? Answer: ', self.env.is_asp_schedule_valid(False))
 
-
-
-                # print('state', state, state['operation', 'prec', 'operation'].edge_index)
-
-            print('Is the schedule valid? Answer: ', self.env.is_asp_schedule_valid(False))
-
-
-            if instances % len(self.env.data) == len(self.env.data) - 1:
+            #Când s-a trecut o dată prin toate instanțele se calculeaza: reward mediu, makespan mediu, tardiness mediu,
+            if episode % len(self.env.data) == len(self.env.data) - 1:
                 mean_training_reward = np.mean(self.env.episodes_rewards)
+                print("self.env.episodes_makespans", self.env.episodes_makespans)
                 mean_training_makespan = np.mean(self.env.episodes_makespans)
                 if len(self.env.episodes_tardinesses) == 0:
                     mean_training_tardiness = 0
                 else:
                     mean_training_tardiness = np.mean(self.env.episodes_tardinesses)
+
+                print("mean_training_makespan", mean_training_makespan)
                 self.logger.record(
                     {
                         'results_on_train_dataset/mean_reward': mean_training_reward,
@@ -557,12 +552,36 @@ class PPOGNN:
                 )
                 self.logger.dump()
 
+                # ===== EARLY STOPPING pe baza makespan-ului =====
+                if mean_training_makespan < self.best_makespan - 1e-6:
+                    # îmbunătățire
+                    self.best_makespan = mean_training_makespan
+                    self.no_improve_counter = 0
+                    print(f"[ES] Îmbunătățire: best_makespan = {self.best_makespan:.2f}")
+                else:
+                    # fără îmbunătățire
+                    self.no_improve_counter += 1
+                    print(f"[ES] Fără îmbunătățire ({self.no_improve_counter}/{self.patience})")
+
+                # condiție de oprire timpurie
+                if self.no_improve_counter >= self.patience:
+                    print("[ES] Early stopping declanșat – nu mai există îmbunătățiri.")
+                    print("TRAINING DONE (early stop)")
+                    self.logger.record(
+                        {
+                            'results_on_train_dataset/instances': episode,
+                            'results_on_train_dataset/num_timesteps': self.num_timesteps
+                        }
+                    )
+                    self.logger.dump()
+                    break
+
         print("TRAINING DONE")
         self.logger.record(
             {
-                'results_on_train_dataset/instances': instances,
+                'results_on_train_dataset/instances': episode,
                 'results_on_train_dataset/num_timesteps': self.num_timesteps
             }
         )
-        print("...train() function was called", enter_train, 'times')
+        print("...train() function was called", enter_train, 'times and select action ', self.num_timesteps, 'times')
         self.logger.dump()

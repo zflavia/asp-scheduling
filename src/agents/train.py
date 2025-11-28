@@ -102,7 +102,7 @@ def main(config_file_name: dict = None, external_config: dict = None, binary_fea
     # get config and data
     config = load_config(config_file_name, external_config)
     stored_instances = load_data(config)
-    #print('stored_instances',stored_instances)
+    print('stored_instances',stored_instances)
     data = stored_instances['instances']
     data_names = stored_instances['instances_names']
 

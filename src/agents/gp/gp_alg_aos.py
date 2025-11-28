@@ -2,6 +2,7 @@ import concurrent.futures
 import random
 import operator
 import pickle
+import numpy as np
 from src.utils.logger import Logger
 from deap import base, creator, tools, gp, algorithms
 from typing import List, Tuple
@@ -51,6 +52,50 @@ class GP:
         self.env_config = config #for saving the solution in file
 
 
+
+    def aos_mutation_con(self, toolbox):
+        self.OP_NAMES = ["mut_shrink", "mut_uniform", "mut_node_replacement"]
+        self.N_OPS = len(self.OP_NAMES)
+
+        self.op_probs = np.ones(self.N_OPS) / self.N_OPS  # probabilități inițiale uniforme
+        self.op_rewards = np.zeros(self.N_OPS)  # reward acumulat
+        self.op_counts = np.zeros(self.N_OPS) + 1e-9  # câte ori a fost folosit fiecare operator (evităm /0)
+
+        self.ALPHA_PM = 0.8  # “learning rate” pentru Probability Matching
+
+        # înregistrăm operatorii de mutație individual
+        toolbox.register("mut_shrink", gp.mutShrink)
+        toolbox.register("mut_uniform", gp.mutUniform, expr=toolbox.expr_mut, pset=toolbox.pset)
+        toolbox.register("mut_node_replacement", gp.mutNodeReplacement, pset=toolbox.pset)
+
+        self.OP_FUNCS = [
+            toolbox.mut_shrink,
+            toolbox.mut_uniform,
+            toolbox.mut_node_replacement,
+        ]
+
+    def adaptive_mutation(self, individual):
+        """
+        Alege un operator de mutație în mod adaptiv, pe baza op_probs.
+        Marchează individul cu op_id, ca să se calculeze reward-ul după evaluare.
+        """
+        #global op_probs, op_counts
+
+        # alegem operatorul i în funcție de probabilitățile curente
+        i = np.random.choice(np.arange(self.N_OPS), p=self.op_probs)
+        mut_op = self.OP_FUNCS[i]
+
+        # aplicăm mutația (DEAP mută in-place și întoarce (indiv, ))
+        mutant, = mut_op(individual)
+
+        # marcăm ce operator a fost folosit
+        mutant.op_id = i
+
+        # numărăm utilizarea
+        self.op_counts[i] += 1
+
+        return mutant,
+
     def config_gp(self, pset):
 
         #if not hasattr(creator, "FitnessMin"):
@@ -84,7 +129,7 @@ class GP:
         #gp.cxOnePointLeafBiased(termpb=0.1) Like cxOnePoint, but with a probability of choosing leaf nodes (terminals) rather than function nodes.
         #            Useful when: You want smaller, more stable changes; You want to reduce wild tree growth (bloat); Your trees contain many terminals
         #gp.cxSemantic()
-        toolbox.register("mate", gp.cxOnePoint)
+        #toolbox.register("mate", gp.cxOnePoint)
         toolbox.register("mate", gp.cxOnePointLeafBiased, termpb=0.1)
         toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=self.max_expression_depth))
 
@@ -98,8 +143,10 @@ class GP:
         #mutSemantic
         if not hasattr(toolbox, 'expr') or not hasattr(toolbox, 'pset'):
             raise AttributeError("Toolbox not fully configured for mutation. Missing 'expr' or 'pset'.")
-        toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=toolbox.pset)
-        toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=self.max_expression_depth))
+        # toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=toolbox.pset)
+        # toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=self.max_expression_depth))
+        self.aos_mutation_con(toolbox)
+        toolbox.register("mutate", self.adaptive_mutation)
 
         # GP parameters
         self.pop = toolbox.population(n=self.pop_size)
@@ -186,6 +233,96 @@ class GP:
         #print(" makespan mediu individ", total_combined_score / num_valid_instances_evaluated)
         return (total_combined_score / num_valid_instances_evaluated,)
 
+
+def update_operator_probs(self):
+    global op_probs, op_rewards, op_counts
+
+    avg_rewards = op_rewards / op_counts
+    if np.all(avg_rewards == 0):
+        op_probs = np.ones(self.N_OPS) / self.N_OPS
+    else:
+        target_probs = avg_rewards / np.sum(avg_rewards)
+        uniform = np.ones(self.N_OPS) / self.N_OPS
+        op_probs = (1 - self.ALPHA_PM) * uniform + self.ALPHA_PM * target_probs
+
+    op_rewards[:] = 0.0
+    op_counts[:] = 1e-9
+
+def eaSimpleAOS(self, population, toolbox, cxpb, mutpb, ngen, stats=None,
+                halloffame=None, verbose=__debug__):
+
+    logbook = tools.Logbook()
+    logbook.header = ['gen', 'nevals'] + (stats.fields if stats else [])
+
+    # evaluate initial population
+    invalid_ind = [ind for ind in population if not ind.fitness.valid]
+    fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+    for ind, fit in zip(invalid_ind, fitnesses):
+        ind.fitness.values = fit
+
+    if halloffame is not None:
+        halloffame.update(population)
+
+    record = stats.compile(population) if stats else {}
+    logbook.record(gen=0, nevals=len(invalid_ind), **record)
+    if verbose:
+        print(logbook.stream)
+
+    # main loop
+    for gen in range(1, ngen + 1):
+        # select + vary
+        offspring = tools.selTournament(population, len(population), tournsize=3)
+        offspring = list(map(toolbox.clone, offspring))
+
+        # salvăm fitness-ul părintelui pentru reward
+        for ind in offspring:
+            ind.parent_fitness = ind.fitness.values[0]
+
+        # crossover + mutation
+        for ind1, ind2 in zip(offspring[::2], offspring[1::2]):
+            if random.random() < cxpb:
+                toolbox.mate(ind1, ind2)
+                del ind1.fitness.values
+                del ind2.fitness.values
+
+        for ind in offspring:
+            if random.random() < mutpb:
+                ind, = toolbox.mutate(ind)
+                del ind.fitness.values
+
+        # evaluate newly created individuals
+        invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+        fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+        for ind, fit in zip(invalid_ind, fitnesses):
+            ind.fitness.values = fit
+
+        # ====== AOS: calculăm reward per operator ======
+        for ind in offspring:
+            if hasattr(ind, "op_id"):
+                parent_fit = ind.parent_fitness
+                child_fit = ind.fitness.values[0]
+                # ex: pentru minimizare
+                delta = parent_fit - child_fit
+                reward = max(0.0, delta)
+                self.op_rewards[ind.op_id] += reward
+
+        # actualizăm probabilitățile operatorilor
+        self.update_operator_probs()
+        # ===============================================
+
+        # hall of fame + log
+        if halloffame is not None:
+            halloffame.update(offspring)
+
+        population[:] = toolbox.select(offspring, len(population))
+
+        record = stats.compile(population) if stats else {}
+        logbook.record(gen=gen, nevals=len(invalid_ind), **record)
+        if verbose:
+            print(logbook.stream)
+
+    return population, logbook
+
     def learn(self, total_instances: int, total_timesteps: int, intermediate_test = None) -> None:
         """
         Learn over n environment instances or n timesteps. Break depending on which condition is met first
@@ -204,7 +341,7 @@ class GP:
 
 
         print("\n--- Start GP ---")
-        final_pop, logbook = algorithms.eaSimple(
+        final_pop, logbook = self.eaSimpleAOS(#algorithms.eaSimple(
             self.pop, toolbox,
             cxpb=self.cxpb, mutpb=self.mutpb,
             ngen=self.ngen,
@@ -254,17 +391,11 @@ class GP:
         pset.renameArguments(ARG1='O_MinPT')     # OP: Minimum processing time: Highlights the quickest possible execution time
         pset.renameArguments(ARG2='O_Flex')      # OP:  Ratio of machines that are eligible for Oij to total machine number
         pset.renameArguments(ARG3='E_PT')        #Edge (op, machine): Processing time p_{ik}  of operation i on machine k
-        #operatii informatii legate cale (cate mai are pe ramura de procesat)
         pset.renameArguments(ARG4='E_PT_maxPT')  #Edge (op, machine): Ratio of p_{ik} to the maximum processing time of p_{il}  l=1,M_i  (M_i= total number of machines on which op i can be executed)
         pset.renameArguments(ARG5='E_PT_maxMPT') #Edge (op, machine): Ratio of p_{ik} to the maximum processing time of p_{lk}  l=1,N _k (N_k= total number of operations that can be executed on machine k)
         pset.renameArguments(ARG6='M_RT')        # Machine: Last operation completion time t_{last}: Determines machine availability.
         pset.renameArguments(ARG7='M_OP')        # Machine: Number of operations (unscheduled)  that can be executed on M / total number of operations (unscheduled)
         pset.renameArguments(ARG8='M_UT')        # Machine: Utilization percentage: T_{used}/t_{last}: Indicates machine efficiency.
-
-        #alta varianta: regula pe selectare pe operatii, și alta regula de selectie de masini
-        #- uitat de reguli traditionale si extrage marimile si sa mergem pe varianta cu 2 reguli
-        # uitat in neuroLS varianta de selectie de masini
-        # genetic programming pt cazul liniar
 
         # Non-terminals
         pset.addPrimitive(operator.add, 2, name="add")

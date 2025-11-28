@@ -5,7 +5,7 @@
 # (R) [str] Type of your scheduling problem - this template is for the asp partially
 sp_type: asp
 # (O)   [string]  Filename under the generated data will be saved (subdirectory is chosen by sp_type)
-instances_file: config_ASP_TUBES_TESTING_ORIGINAL.pkl
+instances_file: config_ASP_TUBES_TESTING_ORIGINAL-flavia.pkl
 # (O)   [int]     Seed for all pseudo random generators (random, numpy, torch)
 seed: 0
 # (R) [int] Number of jobs to be scheduled

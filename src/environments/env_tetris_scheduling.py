@@ -250,7 +250,7 @@ class Env(gym.Env):
         """
         Retrieves info about the instance size and configuration from an instance sample
         """
-        print("get_instance_info() for instance", index)
+        #print("get_instance_info() for instance", index)
         num_jobs, num_tasks, max_runtime, max_deadline, max_sum_runtime_setup_pair = 0, 0, 0, 0, 0
         for task in self.data[index]:
             num_jobs = task.job_index if task.job_index > num_jobs else num_jobs

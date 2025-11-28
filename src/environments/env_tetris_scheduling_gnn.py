@@ -19,7 +19,7 @@ class EnvGNN(Env):
         instance.instance_no = 0
         return instance
 
-    def __init__(self, config: dict, data: List[List[Task]], binary_features='1001011000'):
+    def __init__(self, config: dict, data: List[List[Task]], binary_features='1001011000', from_test=False):
 
         #super(EnvGNN, self).__init__(config, data, binary_features)
         Env.__init__(self, config, data, binary_features)
@@ -209,7 +209,9 @@ class EnvGNN(Env):
                                           aux_list_number_of_operations_executable_on_machines,
                                           aux_list_utilization_percentage]
 
-        aux_list_features.append([aux_list_op_mach_processing_times, aux_list_op_mach_processing_time_ratios_a, aux_list_op_mach_processing_time_ratios_b])
+        aux_list_features.append([aux_list_op_mach_processing_times,
+                                  aux_list_op_mach_processing_time_ratios_a,
+                                  aux_list_op_mach_processing_time_ratios_b])
         aux_list_features_flat = [item for sublist in aux_list_features for item in sublist]
 
 
@@ -227,6 +229,10 @@ class EnvGNN(Env):
         return self.heteroData.metadata()
 
     def reset (self):
+
+
+        #FM: aici ar trebui implementat ca o lista circulara ca sa pot parcurge setul de mai multe ori
+
         self.runs += 1
 
         # reset episode counters and infos
@@ -389,6 +395,7 @@ class EnvGNN(Env):
 
             if done:
                 total_reward = self.compute_reward() / self.reward_normalization_factor
+                self.episodes_makespans.append(self.makespan)
                 infos = {'mask': [] }
                 return self.state, total_reward, done, infos
 

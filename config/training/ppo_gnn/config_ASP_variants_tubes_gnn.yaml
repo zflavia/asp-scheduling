@@ -10,7 +10,7 @@ algorithm: ppo_gnn
 instances_file: asp/config_ASP_variants_tubes_train.pkl
 # (O)   [string]  The finished model is saved under this name. Alternatively set to <automatic>, then it will be
                   # replaced with the current DayMonthYearHourMinute
-saved_model_name: ASP_variants_tubes_gnn_model
+saved_model_name: ASP_TUBES_ORIGINAL_GNN_model
 # (R)   [int]     Seed for all pseudo random generators (random, numpy, torch)
 seed: 0
 # (O)   [bool]    Bool, if the train-test-split of instances should remain the same (1111) and be independent of the
@@ -19,7 +19,7 @@ seed: 0
 overwrite_split_seed: False
 # (R)   [string]  Set an individual description that you can identify this training run more easily later on.
                   # This will be used in "weights and biases" as well
-config_description: ASP_TUBES_GNN_train
+config_description: ASP_TUBES_GNN
 # (O)   [string]  Set a directory where you want to save the agent model
 experiment_save_path: models
 # (O)   [int]:    Wandb mode choose: choose from [0: no wandb, 1: wandb_offline, 2: wandb_online]
@@ -28,14 +28,21 @@ wandb_mode: 0
 wandb_project: ppo_test
 
 # --- PPO parameter ---
-# (O)   [int]     Number of steps collected before PPO updates the policy again #2048 -stores something in learn
-rollout_steps: 20
+# (O)   [int]  Number of stagnation
+early_stoppping_pacience: 10
+
+# (0)   [str]   Update strategy based on 'buffer_size' or by 'episodes_number'
+update_strategy: 'episodes_number'
+# (O)   [int]     Number of steps (=a selected action) collected before PPO updates the policy again
+rollout_steps: 1024
+# (O)   [int]     Number of episodes (=a complete schedule) collected before PPO updates the policy again
+rollout_episodes: 20
 # (O)   [float]   Factor to discount future rewards
 gamma: 0.99
-# (O)   [int]     Number of epochs the network gets fed with the whole rollout data, when training is triggered
+# (O)   [int]  Number of epochs the network gets fed with the whole rollout data, when training is triggered
 n_epochs: 5
 # (O)   [int]     Batch size into which the rollout data gets split
-batch_size: 10
+batch_size: 64
 # (O)   [float]   Range of the acceptable deviation between the policy before and after training
 clip_range: 0.2
 # (O)   [float]   Entropy loss coefficient for the total loss calculation
@@ -54,7 +61,7 @@ value_layer:  [ 256, 256 ]
 value_activation: 'Tanh' #'ReLU'
 # (R)   [int]     Maximum number of instances shown to the agent. Limits the training process. Note that instances may be
                   # multiple times, if total_instances is larger than the number of generated instances
-total_instances: 250
+total_instances: 1000
 # (R)   [int]     Maximum number of steps that the agent can interact with the env. Limits the training process
 total_timesteps: 3_000_000
 # (R)   [float]   Range between 0 and 1. How much (percentually) of the generated data will be used for training.
@@ -67,7 +74,6 @@ intermediate_test_interval: 1_000
 
 # --- env (Environment) parameter ---
 # (R)   [str]     Environment you want to use. The vanilla case is env_tetris_scheduling.
-#environment: env_tetris_scheduling
 environment: env_tetris_scheduling_gnn
 # (O)   [int]     Maximum number of steps the agent can take before the env interrupts the episode.
                   # Should be greater than the minimum number of agent actions required to solve the problem.

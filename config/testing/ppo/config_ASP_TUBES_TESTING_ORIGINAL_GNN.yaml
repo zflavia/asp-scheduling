@@ -7,7 +7,7 @@ sp_type: asp
 # (R)   [string]  RL algorithm you want to use - This template is for dqn
 algorithm: ppo_gnn
 # (R)   [string]  Path to the file with generated data that to be used for test
-instances_file: asp/config_ASP_TUBES_ORIGINAL_GNN_test.pkl
+instances_file: asp/config_ASP_TUBES_ORIGINAL_GNN_test-flavia.pkl
   # (R)   [string]  Test Environment: Should be the same the agent was trained on
 # to stay consistent with action and observation spaces
 #environment: env_tetris_scheduling
