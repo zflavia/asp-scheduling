@@ -22,13 +22,29 @@ from typing import List
 from src.data_generator.task import Task
 from src.data_generator.sp_factory import SPFactory
 
-def dfs_bom(node, sorted_top, tasks_mapping_ids, deadline, job_index, filename, quantity, should_multiply_quantity_to_execution_times, num_machines = 50):
+def dfs_bom(node, sorted_top, tasks_mapping_ids, deadline, job_index, filename, quantity, should_multiply_quantity_to_execution_times, num_machines = 50,
+            __machine_id ={}):
+    """
+
+    :param node:
+    :param sorted_top:
+    :param tasks_mapping_ids:
+    :param deadline:
+    :param job_index:
+    :param filename:
+    :param quantity:
+    :param should_multiply_quantity_to_execution_times:
+    :param num_machines:
+    :param __machine_id: helper variable used to keep a link between instance_file machineID and machineID need by this implementation
+    :return:
+    """
     print("dfs_bom() parent quantity:", quantity, "curr operation_id", node['operationid'], "curr_op_quantity", node['quantity'], end=' cildren')
     for child in node.get('children', []):
         print(child['operationid'], end=",")
     print()
     for child in node.get('children', []):
-        dfs_bom(child, sorted_top, tasks_mapping_ids, deadline - 1, job_index, filename, quantity * node['quantity'], should_multiply_quantity_to_execution_times, num_machines)
+        dfs_bom(child, sorted_top, tasks_mapping_ids, deadline - 1, job_index, filename, quantity * node['quantity'],
+                should_multiply_quantity_to_execution_times, num_machines, __machine_id)
 
     machines = [0] * num_machines
     execution_times = {}
@@ -36,16 +52,18 @@ def dfs_bom(node, sorted_top, tasks_mapping_ids, deadline, job_index, filename, 
     max_runtime = 0
     max_setup = 0
     average_runtime = 0
-    # TODO: machine['id'] - 1
-    # DONE see below
     for machine in node.get('machines', []):
-        machine_id = machine['id'] - 1
+        if machine['id'] not in __machine_id:
+            __machine_id[machine['id']] = len(__machine_id)
+        machine_id = __machine_id[machine['id']]
+        #machine_id = machine['id'] - 1
         machines[machine_id ] = 1
+
         execution_times[machine_id] = machine['execution_time']
         max_runtime = machine['execution_time'] if max_runtime < machine['execution_time'] else max_runtime
         setup_times[machine_id] = machine['setup_time']
         max_setup =  machine['setup_time'] if max_setup < machine['setup_time'] else max_setup
-        average_runtime = average_runtime + machine['execution_time']
+        average_runtime +=  machine['execution_time']
     average_runtime = int(average_runtime / len(node.get('machines', [])))
 
 
@@ -74,6 +92,7 @@ def dfs_bom(node, sorted_top, tasks_mapping_ids, deadline, job_index, filename, 
     sorted_top[-1].task_index = len(sorted_top) - 1
     tasks_mapping_ids[node['operationid']] = len(sorted_top) - 1
 
+
 def get_job_deadline(start_date_str, delivery_date_str):
     # Convert strings to datetime objects
     start_date = datetime.strptime(start_date_str, "%Y-%m-%d %H:%M:%S.%f")
@@ -100,16 +119,28 @@ def load_bom_files(input_directory, similar_instances_number, should_modify_inst
                 bom_job = json.load(f)
                 deadline = get_job_deadline(bom_job['start_date'], bom_job['delivery_date'])
                 num_machines = len(bom_job['metainfo']['machines_list'])
+                __machine_id ={} #auxiliary variable used to map file machineId to 0, 1, ... as needed by this implementation
                 tasks_mapping_ids = dict()
                 sorted_top: List[Task] = []
                 dfs_bom(bom_job, sorted_top, tasks_mapping_ids, deadline,
                         0, filename=file, quantity=1,
                         should_multiply_quantity_to_execution_times=should_multiply_quantity_to_execution_times,
-                        num_machines=num_machines
+                        num_machines=num_machines,
+                        __machine_id = __machine_id
                 )
                 for task in sorted_top:
-                    if task.parent_index:
+                    if task.parent_index is not None:
                         task.parent_index = tasks_mapping_ids[task.parent_index]
+
+                #build: information number of nodes until root, CP (optimistic estimation)
+                for task in sorted_top:
+                    it_parent_index = task.parent_index
+                    while it_parent_index is not None:
+                        parent = sorted_top[it_parent_index]
+                        task.no_remaining_operations += 1
+                        task.remaining_work += min(parent.execution_times_setup.values())
+                        it_parent_index = parent.parent_index
+
                 instance_list.append(sorted_top)
                 instance_name_list.append(Path(f.name).stem)
 

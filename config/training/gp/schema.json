@@ -6,8 +6,8 @@
   "properties": {
     "algorithm": {
       "type": "string",
-      "enum": ["gp"],
-      "description": "The algorithm to use — only 'gp' is valid for this template."
+      "enum": ["gp", "gp-aos"],
+      "description": "The algorithm to use — only 'gp' and 'gp-aos' is valid for this template."
     },
     "instances_file": {
       "type": "string",
@@ -60,6 +60,11 @@
       "minimum": 0.0,
       "maximum": 1.0,
       "description": "Probability of mutation during evolution."
+    },
+    "aos_type": {
+      "type": "string",
+      "enum": ["aos", "epsilon-qlearning"],
+      "description": "The GP operator selection variant."
     },
     "environment": {
       "type": "string",

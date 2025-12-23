@@ -5,7 +5,7 @@
 # (R) [string] Type of your scheduling problem - this template is for the asp partially
 sp_type: asp
 # (O)   [string]  Filename under the generated data will be saved (subdirectory is chosen by sp_type)
-instances_file: config_ASP_variants_tubes_train.pkl
+instances_file: ds_variants_deep_train.pkl
 # (O)   [int]     Seed for all pseudo random generators (random, numpy, torch)
 seed: 0
 # (R) [int] Number of jobs to be scheduled
@@ -27,7 +27,7 @@ num_processes: 16
 # (O) [bool] Save the generated data in a file
 write_to_file: True
 # (O) [string] Load the bom input files from this input directory
-input_directory: ../scamp-datagen/datagen/boms/boms_tubes/train/
+input_directory: ../scamp-datagen/datagen/boms/variants/boms_deep/train/
 # (0) [bool] If true, the instances will be modified
 should_modify_instances: False
 # (O) [int] Number of instances to be generated based on the original instances

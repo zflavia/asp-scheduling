@@ -462,7 +462,7 @@ class PPOGNN:
         model.policy_old.load_state_dict(data["policy_old"])
         model.policy.load_state_dict(data["policy_old"])
 
-        return model
+        return model, _
 
 
     def learn(self, total_instances: int, total_timesteps: int, intermediate_test=None) -> None:

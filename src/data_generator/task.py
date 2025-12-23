@@ -105,6 +105,10 @@ class Task:
             self.runtime = int(runtime * quantity)  # max execution time (without setup)
             self.average_execution_times_setup /= len(self.execution_times_setup)
 
+        self.no_remaining_operations = 0
+        self.remaining_work = 0
+        self.release_time = 0 if len(self.children) == 0 else None
+
 
     def recalculate_execution_times_setup(self):
         self.max_execution_times_setup = 0
@@ -122,7 +126,7 @@ class Task:
         self.average_execution_times_setup /= len(self.execution_times_setup)
 
     def __str__(self) -> str:
-        return f"Task - job index {self.job_index} - task index {self.task_index} - parent_index {self.parent_index} - children {self.children} - machine-no {len(self.execution_times)}"
+        return f"Task - job index {self.job_index} - task index {self.task_index} - parent_index {self.parent_index} - children {self.children} - machine-no {len(self.execution_times)}\n\t no_remaining_operations={self.no_remaining_operations} remaining_work={self.remaining_work} execution_times_setup={self.execution_times_setup}"
 
     def str_info(self) -> str:
         return f"Job index {self.job_index}\nTask index {self.task_index}\n "

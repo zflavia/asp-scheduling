@@ -10,7 +10,7 @@ instances_file: asp/config_ASP_variants_tubes_test.pkl
 # (R)   [string]  Test Environment: Should be the same the agent was trained on
 environment: env_gp
 # (O)   [string]  Name of the model you want to load for testing
-saved_model_name: ASP_variants_tubes_gp_best_rule
+saved_model_name: gp_aos_best_rule_5files
 # (R)   [int]     Seed for all pseudo random generators (random, numpy, torch)
 seed: 2
 # (R)   [string]  Set an individual description that you can identify this
@@ -19,4 +19,5 @@ seed: 2
 config_description: ASP_variants_tubes_gp_best_rule
 # (O)   [string]  Set a directory from where you want to load the agent model
 experiment_save_path: models
-
+# (0) [string] Evaluate using only the best element (best), or using an assemble (assemble), or assemble-test
+evaluation_type: assemble-test

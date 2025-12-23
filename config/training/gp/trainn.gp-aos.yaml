@@ -3,9 +3,9 @@
 ##############################################################################
 
 # (R)   [String]  The algorithm you want to use - This template is for GP
-algorithm: gp
+algorithm: gp-aos
 # (R)   [string]  Path to the file with generated data that to be used for training
-instances_file: asp/ds_ASP_deep.pkl
+instances_file: asp/ds_variants_deep_train.pkl
 # (O)   [int]  not used, kept for compatibility with others agents
 total_instances: 0
 # (O)   [int]  not used, kept for compatibility with others agents
@@ -14,13 +14,13 @@ total_timesteps: 0
 
 # (R)   [string] the name of the file that contains best rule. Alternatively set to <automatic>, then it will be
 #      replaced with the current DayMonthYearHourMinute
-saved_model_name: gp_variants_tubes_train
+saved_model_name: gp_aos_best_rule_5files
 
 # (O)   [string]  Set a directory where you want to save the agent model
 experiment_save_path: models
 
 # (R)   [int]     Seed for all pseudo random generators (random, numpy, torch)
-seed: 200
+seed: 0
 
 #--- DEAP parameter ---
 # (O)   [int]     Number of paraller processces for DEAP
@@ -28,17 +28,19 @@ no_parallel_processes: 1
 
 #--- GP parameter ---
 # (O)   [int]     Number of individuals in the population
-population_size: 10
+population_size: 20
 # (O)   [int]   ......
-halloffame_size: 1
+halloffame_size: 3
 # (O)   [int]     Maximum depth of a tree
 gp_tree_max_depth: 3
 # (O)   [float]   Crossover probability between [0,1]
 crossover_probability: 0.5
 # (O)   [float]   Mutation probability between [0,1]
-mutation_probability: 0.3
+mutation_probability: 0.4
 # (O)   [int]   Stopping criteria: Generations number
-generations_number: 50
+generations_number: 30
+# (0) [string] Operator selection mechanism (aos,epsilon-qlearning)
+aos_type: epsilon-qlearning
 
 
 # --- env (Environment) parameter ---

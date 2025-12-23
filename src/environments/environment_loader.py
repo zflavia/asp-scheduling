@@ -23,7 +23,7 @@ ENVIRONMENT_MAPPER_DICT: dict = {
     },
     'env_gp':{
         'class': EnvGP,
-        'compatible_algorithms': ['gp']
+        'compatible_algorithms': ['gp', 'gp-aos']
     }
 }
 
@@ -58,7 +58,7 @@ class EnvironmentLoader:
         if check_env_agent_compatibility:
             cls.check_environment_agent_compatibility(config, env_name=env_name)
 
-        print(ENVIRONMENT_MAPPER_DICT[env_name])
+        #print(ENVIRONMENT_MAPPER_DICT[env_name])
         # Create environment.
         env = ENVIRONMENT_MAPPER_DICT[env_name]['class'](config, **kwargs)
 

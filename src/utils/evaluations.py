@@ -74,7 +74,8 @@ class EvaluationHandler:
         evaluation_results['tardiness_mean'] = np.mean(tardiness)
         evaluation_results['tardiness_std'] = np.std(tardiness)
         evaluation_results['tardiness_max_mean'] = np.mean(self.tardiness_max)
-        print("evaluate_test() makespan", self.makespan)
+        #print("evaluate_test() makespan", self.makespan)
+        evaluation_results['makespan_tests'] = self.makespan
         evaluation_results['makespan_mean'] = np.mean(self.makespan)
         evaluation_results['rew_worst_quantile_border'] = np.quantile(rewards, 0.1)
         evaluation_results['rew_cvar'] = rewards[rewards <= evaluation_results['rew_worst_quantile_border']].mean()

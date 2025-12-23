@@ -102,7 +102,7 @@ def main(config_file_name: dict = None, external_config: dict = None, binary_fea
     # get config and data
     config = load_config(config_file_name, external_config)
     stored_instances = load_data(config)
-    print('stored_instances',stored_instances)
+
     data = stored_instances['instances']
     data_names = stored_instances['instances_names']
 
@@ -115,6 +115,7 @@ def main(config_file_name: dict = None, external_config: dict = None, binary_fea
 
     # train/test/validation data split
     split_random_seed = config['seed'] if not config.get('overwrite_split_seed', False) else 1111
+    print("dataset len:",len(data))
     train_data, test_data = train_test_split(
         data, train_size=config.get('train_test_split'), random_state=split_random_seed)
     test_data, val_data = train_test_split(
