@@ -423,14 +423,14 @@ class Env(gym.Env):
                         if latest_start_time < start_time or (latest_start_time == start_time and min_runtime > runtime):
                             latest_start_time, machine_id, index, min_runtime = start_time, machine, -1, runtime
                         found = True
-                        if (task.task_id == 832):
-                            print('Task 832 more:', 'machine_id', machine_id, 'latest_start_time', latest_start_time, 'completion_time', completion_time, 'index', index, 'min_runtime', min_runtime)
+                        # if (task.task_id == 832):
+                        #     print('Task 832 more:', 'machine_id', machine_id, 'latest_start_time', latest_start_time, 'completion_time', completion_time, 'index', index, 'min_runtime', min_runtime)
                         # print('Case 1: scheduling after last interval')
                     else:
                         #  print('Case 2: scheduling between intervals')
                         #  i decreasing if the time intervals are increasing
                         #  i increasing if the time intervals are decreasing
-                        for i in range(self.machines[machine].get_int_len() - 2, 0, -1):
+                        for i in range(self.machines[machine].get_int_len() - 2, -1, -1):
                             #after_task = self.machines[machine].get_int(i + 1)
                             before_task = self.machines[machine].get_int(i + 1)  #BT.completion_time <= CT.start_time
                             current_task = self.machines[machine].get_int(i)

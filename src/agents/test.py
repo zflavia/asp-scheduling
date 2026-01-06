@@ -12,6 +12,7 @@ You can adapt the heuristics used for testing in the TEST_HEURISTICS constant. A
 When running the file from a console you can use --plot-ganttchart to show the generated gantt_chart figures.
 """
 import argparse
+import json
 
 from matplotlib import pyplot as plt
 from typing import Tuple, List, Dict, Union
@@ -34,7 +35,8 @@ from src.environments.env_gp import EnvGP
 # constants
 TEST_HEURISTICS: List[str] = ['rand', 'EDD', 'SPT', 'MTR', 'LTR']
 
-def get_action(env, model, heuristic_id: str, heuristic_agent: Union[HeuristicSelectionAgent, None], sp_type, feasible_tasks, visited, max_deadline):
+def get_action(env, model, heuristic_id: str, heuristic_agent: Union[HeuristicSelectionAgent, None],
+               sp_type, feasible_tasks, visited, max_deadline, gp_individual_trees_no):
     """
     This function determines the next action according to the input model or heuristic
 
@@ -54,7 +56,7 @@ def get_action(env, model, heuristic_id: str, heuristic_agent: Union[HeuristicSe
 
     if isinstance(env, EnvGP):
         action_mode = 'GP'
-        selected_action = env.get_next_action(model)
+        selected_action = env.get_next_action(model, gp_individual_trees_no)
 
     elif heuristic_id:
         action_mode = 'heuristic'
@@ -72,7 +74,7 @@ def get_action(env, model, heuristic_id: str, heuristic_agent: Union[HeuristicSe
     return selected_action, action_mode, completion_time
 
 
-def run_episode(env, model, heuristic_id: Union[str, None], handler: EvaluationHandler, sp_type) -> None:
+def run_episode(env, model, heuristic_id: Union[str, None], handler: EvaluationHandler, sp_type, gp_individual_trees_no=None) -> None:
     """
     This function executes one testing episode
 
@@ -106,8 +108,8 @@ def run_episode(env, model, heuristic_id: Union[str, None], handler: EvaluationH
     while not done:
         steps += 1
         #  add sp_type to heuristic_agent and other values for LETSA heuristic
-        action, action_mode, completion_time = get_action(env, model, heuristic_id, heuristic_agent, sp_type, feasible_tasks, visited, max_deadline)
-                #  next step should be taken based on the task_idx in case of asp
+        action, action_mode, completion_time = get_action(env, model, heuristic_id, heuristic_agent, sp_type, feasible_tasks, visited, max_deadline, gp_individual_trees_no)
+        #  next step should be taken based on the task_idx in case of asp
         if sp_type == 'asp' and action_mode == 'heuristic':
             if heuristic_id == 'LETSA':
                 b = env.step(action=0, action_mode=action_mode, task_idx=action, completion_time=completion_time)
@@ -193,7 +195,7 @@ def log_results(plot_logger: Logger, inter_test_idx: Union[int, None], heuristic
 
 
 def test_model(env_config: Dict, data: List[List[Task]], logger: Logger, plot: bool = None, log_episode: bool = None,
-               model=None, heuristic_id: str = None, intermediate_test_idx=None, binary_features = None) -> dict:
+               model=None, heuristic_id: str = None, intermediate_test_idx=None, binary_features = None, gp_individual_trees_no=None) -> dict:
     """
     This function tests a model in the passed environment for all problem instances passed as data_test and returns an
     evaluation summary
@@ -219,10 +221,10 @@ def test_model(env_config: Dict, data: List[List[Task]], logger: Logger, plot: b
         environment, _ = EnvironmentLoader.load(env_config, data=[data[test_i]], binary_features=binary_features, from_test=True)
         environment.runs = test_i
 
-        # run environment episode
-        #  added env_config['sp_type']
-
-        run_episode(environment, model, heuristic_id, evaluation_handler, env_config['sp_type'])
+        # de 2 ori acceasi linie
+        # environment, _ = EnvironmentLoader.load(env_config, data=[data[test_i]], binary_features=binary_features,
+        #                                         from_test=True)
+        run_episode(environment, model, heuristic_id, evaluation_handler, env_config['sp_type'], gp_individual_trees_no)
         # schedule_info = ''
         # for task in environment.tasks:
             # schedule_info += task.str_schedule_info_simple() + '\n'
@@ -245,7 +247,8 @@ def test_model(env_config: Dict, data: List[List[Task]], logger: Logger, plot: b
 
 def test_model_and_heuristic(config: dict, model, data_test: List[List[Task]], logger: Logger,
                              plot_ganttchart: bool = False, log_episode: bool = False, binary_features = None,
-                             run_heuristics = None, data_test_names = []) -> dict:
+                             run_heuristics = None, data_test_names = [],
+                             gp_individual_trees_no:int = None) -> dict:
     """
     Test model and agent_heuristics len(data) times and returns results
 
@@ -264,12 +267,14 @@ def test_model_and_heuristic(config: dict, model, data_test: List[List[Task]], l
     #print("test_model_and_heuristic() data_test", data_test)
 
     test_kwargs = {'env_config': config, 'data': data_test, 'logger': logger,
-                   'plot': plot_ganttchart, 'log_episode': log_episode, 'binary_features': binary_features}
+                   'plot': plot_ganttchart, 'log_episode': log_episode, 'binary_features': binary_features,
+                   'gp_individual_trees_no': gp_individual_trees_no}
 
     # # test agent
     # start_time = datetime.now()
     res = test_model(model=model, **test_kwargs)
-    results.update({'agent': res, 'test-data-file-names':data_test_names})
+    results.update({'agent': res})
+    results.update({'test-data-file-names': data_test_names})
     # end_time = datetime.now()
     # # Calculate the timespan in milliseconds
     # timespan = (end_time - start_time).total_seconds() * 1000
@@ -312,12 +317,11 @@ def get_perser_args():
 def main(external_config=None):
 
     # get config_file and binary_features from terminal input
-    print("main1")
     parse_args = get_perser_args()
     config_file_path = parse_args.config_file_path
     binary_features = parse_args.binary_features
     run_heuristics = parse_args.run_heuristics
-    print("run_heuristics", run_heuristics)
+    #print("run_heuristics", run_heuristics)
 
     # get config and data
     config = load_config(config_file_path, external_config)
@@ -325,27 +329,59 @@ def main(external_config=None):
     data = instances_info['instances'] #load all test instances
     data_names = instances_info['instances_names']
 
-    # Random seed for numpy as given by config
-    np.random.seed(config['seed'])
+    seeds = config['seed'].copy()
+    model_file = config['saved_model_name']
+    path_results_file = config['experiment_result_path']
 
-    # get model path from config
-    best_model_path = ModelHandler.get_best_model_path(config)
 
-    # create logger
-    logger = Logger(config=config)
-    # for index, instance in enumerate(data):
-    #     for task in instance:
-    #         print("main() instance", index,  "task",  task.task_id, task.done)
-    aux_model = get_agent_class_from_config(config=config)
-    #print("main() aux_model",aux_model)
-    model= (aux_model.load(file=best_model_path, config=config, logger=logger))
-    #print("main() model", model)
-    print("main7")
-    run_heuristics = False
-    results = test_model_and_heuristic(config=config, model=model, data_test=data, data_test_names=data_names,
-                                       plot_ganttchart=parse_args.plot_ganttchart, logger=logger, binary_features=binary_features, run_heuristics=run_heuristics)
-    print(results)
-    plt.show()
+    for seed in seeds:
+        with open(f"{path_results_file}_seed_{seed}.json", "w", encoding="utf-8") as outfile:
+
+            config['seed'] = seed
+            config['saved_model_name']= f'{model_file}_seed_{seed}'
+
+            # Random seed for numpy as given by config
+            np.random.seed(config['seed'])
+
+            # get model path from config
+            best_model_path = ModelHandler.get_best_model_path(config)
+
+            # create logger
+            logger = Logger(config=config)
+            aux_model = get_agent_class_from_config(config=config)
+            model, initial_model= (aux_model.load(file=best_model_path, config=config, logger=logger))
+            run_heuristics = False
+
+            from src.agents.gp.gp_alg_aos import GP_AOS
+            from src.agents.gp.gp_alg_disp_route import GP_Disp_Route
+            def is_model(obj, target_cls):
+                return issubclass(obj, target_cls) if isinstance(obj, type) else isinstance(obj, target_cls)
+
+            gp_individual_trees_no = None
+            if is_model(aux_model, GP_AOS):
+                gp_individual_trees_no = 1
+            elif is_model(aux_model, GP_Disp_Route):
+                gp_individual_trees_no = 2
+
+            gp_evaluation_type = config.get('evaluation_type')
+            #print("!!!!!!!!before results", gp_evaluation_type)
+            if gp_evaluation_type == 'assemble-test':
+                print("model", len(model))
+                rez={"runs":[]}
+                for m in model:
+                    results = test_model_and_heuristic(config=config, model=m, data_test=data, data_test_names=data_names,
+                                                       plot_ganttchart=parse_args.plot_ganttchart, logger=logger,
+                                                       binary_features=binary_features, run_heuristics=run_heuristics,
+                                                       gp_individual_trees_no=gp_individual_trees_no)
+                    rez["runs"].append(results)
+                json.dump(rez, outfile, indent=2)
+            else:
+
+                results = test_model_and_heuristic(config=config, model=model, data_test=data, data_test_names=data_names,
+                                                   plot_ganttchart=parse_args.plot_ganttchart, logger=logger, binary_features=binary_features, run_heuristics=run_heuristics,
+                                                   gp_individual_trees_no=gp_individual_trees_no)
+                json.dump(results, outfile, indent=2)
+            plt.show()
 
 
 if __name__ == '__main__':

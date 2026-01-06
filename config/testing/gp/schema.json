@@ -18,8 +18,12 @@
             "type": "string"
         },
         "seed": {
-            "type": "integer",
-            "minimum": 0
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            }
         },
         "config_description": {
             "type": "string"

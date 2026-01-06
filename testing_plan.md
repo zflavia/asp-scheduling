@@ -28,3 +28,16 @@ Generate datesets
  python3 -m src.data_generator.bom_instance_factory -fp data_generation/asp-sets/config_dataset_dyuthi.yaml
  python3 -m src.data_generator.bom_instance_factory -fp data_generation/asp-sets/config_dataset_2asp.yaml
  python3 -m src.data_generator.bom_instance_factory -fp data_generation/asp-sets/config_dataset_fjsspHurinkVdata.yaml
+
+
+python3 -m src.agents.train -fp training/gp/trainn.gp-aos.yaml
+
+-----------------------
+ python3 -m src.data_generator.bom_instance_factory -fp data_generation/asp-sets/config_dataset_fjsspHurinkVdata.yaml
+ python3 -m src.data_generator.bom_instance_factory -fp data_generation/asp-sets/config_dataset_train_ga.yaml
+
+ python3 -m src.agents.train -fp training/gp/config_gp_pair_train_ga.yaml 
+ python3 -m src.agents.train -fp training/gp/config_gp_dr_train_ga.yaml 
+
+
+

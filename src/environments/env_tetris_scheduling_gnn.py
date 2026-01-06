@@ -494,7 +494,7 @@ class EnvGNN(Env):
                 else:
                     #  LETSA specific
                     original_completion_time = kwargs['completion_time']
-                    machine_id, start_time, end_time, index = self.choose_machine_using_completion_time(selected_task, original_completion_time)
+                    machine_id, start_time, end_time, index = choose_machine_using_completion_time(selected_task, self.machines, self.tasks, original_completion_time)
                     #  job = 0 since we only have one job
                     self.execute_action_with_given_interval(0, selected_task, machine_id, start_time, end_time, index)
 

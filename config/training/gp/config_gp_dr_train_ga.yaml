@@ -5,9 +5,9 @@
 # (R)   [str]     Environment you want to use. The vanilla case is env_gp.
 environment: env_gp
 # (R)   [String]  The algorithm you want to use - This template is for GP
-algorithm: gp-aos
+algorithm: gp-dr
 # (R)   [string]  Path to the file with generated data that to be used for training
-instances_file: asp/ds_variants_deep_train.pkl
+instances_file: asp/ds_ASP_train_ga.pkl
 # (O)   [int]  not used, kept for compatibility with others agents
 total_instances: 0
 # (O)   [int]  not used, kept for compatibility with others agents
@@ -15,13 +15,13 @@ total_timesteps: 0
 
 # (R)   [string] the name of the file that contains best rule. Alternatively set to <automatic>, then it will be
 #      replaced with the current DayMonthYearHourMinute
-saved_model_name: gp_aos_deep_aos
+saved_model_name: gp_dr_train_ga
 
 # (O)   [string]  Set a directory where you want to save the agent model
 experiment_save_path: models
 
 # (R)   [int]  Seed for all pseudo random generators (random, numpy, torch)
-seed: [0, 200]
+seed: [0, 200, 300, 400, 500, 600]
 
 #--- DEAP parameter ---
 # (O)   [int]     Number of paraller processces for DEAP
@@ -29,19 +29,19 @@ no_parallel_processes: 1
 
 #--- GP parameter ---
 # (O)   [int]     Number of individuals in the population
-gp_population_size: 10
+gp_population_size: 20
 # (O)   [int]   ......
 gp_halloffame_size: 3
 # (0)   [int] Tree depth at initialization
-gp_tree_initial_max_depth: 3
+gp_tree_initial_max_depth: 4
 # (O)   [int]     Maximum depth of a tree
-gp_tree_max_depth: 5
+gp_tree_max_depth: 8
 # (O)   [int]   Stopping criteria: Generations number
-gp_generations_number: 10
+gp_generations_number: 50
 # (O)   [int]   After each 'simplify_frequency' the population individual are simplified
-gp_tree_simplify_frequency: 5
+gp_tree_simplify_frequency: 10
 # (O)   [float]   How often a variation operator (3 mutation types, 2 crossover types)  is selected [0,1]
-gp_population_variation: 0.9
+gp_population_variation: 0.91
 # (0) [string] Operator selection mechanism (aos,epsilon-qlearning,random)
 gp_aos_type: epsilon-qlearning
 # (0) [int] Tournament selection size

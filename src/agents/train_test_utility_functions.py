@@ -25,12 +25,12 @@ from src.agents.reinforcement_learning.ppo_masked import MaskedPPO
 from src.agents.reinforcement_learning.ppo_gnn import PPOGNN
 from src.agents.gp.gp_alg import GP
 from src.agents.gp.gp_alg_aos import GP_AOS
-
+from src.agents.gp.gp_alg_disp_route import GP_Disp_Route
 
 # Constants
 TIMESTAMP: str = f"{datetime.datetime.now().strftime('%d%m%Y%H%M')}"
-AGENT_DICT: Dict[str, str] = {'ppo_masked': 'MaskedPPO', 'ppo': 'PPO', 'dqn': 'DQN', 'ppo_gnn': 'PPOGNN', 'gp': 'GP',
-                              'gp-aos': 'GP_AOS'}
+AGENT_DICT: Dict[str, str] = {'ppo_masked': 'MaskedPPO', 'ppo': 'PPO', 'dqn': 'DQN', 'ppo_gnn': 'PPOGNN', 'gp': 'GPi',
+                              'gp-aos': 'GP_AOS', 'gp-dr': 'GP_Disp_Route'}
 TRAIN_ALGORITHM_PARAM: str = 'algorithm'
 TEST_ALGORITHM_PARAM: str = 'test_algorithm'
 

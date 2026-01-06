@@ -6,7 +6,7 @@
   "properties": {
     "algorithm": {
       "type": "string",
-      "enum": ["gp", "gp-aos"],
+      "enum": ["gp", "gp-aos", "gp-dr"],
       "description": "The algorithm to use — only 'gp' and 'gp-aos' is valid for this template."
     },
     "instances_file": {
@@ -22,54 +22,70 @@
       "description": "Model output directory."
     },
     "seed": {
-      "type": "integer",
-      "description": "Seed for all pseudo-random generators (random, numpy, torch)."
+      "type": "array",
+      "description": "Seed for all pseudo-random generators (random, numpy, torch).",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "integer",
+        "minimum": 0
+      }
     },
     "no_parallel_processes": {
       "type": "integer",
       "description": "Number of parallel processes used by DEAP library."
     },
-    "generations_number": {
-      "type": "integer",
-      "minimum": 3,
-      "description": "Stooping criteria: Number of repetitions."
-    },
-    "population_size": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "Number of individuals in the population."
-    },
-    "halloffame_size": {
-      "type": "integer",
-      "minimum": 0,
-      "description": "Number of elite individuals preserved across generations."
-    },
-    "gp_tree_max_depth": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "Maximum depth allowed for a tree in GP."
-    },
-    "crossover_probability": {
-      "type": "number",
-      "minimum": 0.0,
-      "maximum": 1.0,
-      "description": "Probability of applying crossover during evolution."
-    },
-    "mutation_probability": {
-      "type": "number",
-      "minimum": 0.0,
-      "maximum": 1.0,
-      "description": "Probability of mutation during evolution."
-    },
-    "aos_type": {
-      "type": "string",
-      "enum": ["aos", "epsilon-qlearning"],
-      "description": "The GP operator selection variant."
-    },
     "environment": {
       "type": "string",
       "description": "The environment to use (e.g., 'env_gp')."
     },
+    "gp_population_size": {
+      "type": "integer",
+      "minimum": 10,
+      "description": "Number of individuals in the population."
+    },
+    "gp_halloffame_size": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of elite individuals preserved across generations."
+    },
+    "gp_tree_initial_max_depth": {
+      "type": "integer",
+      "minimum": 3,
+      "description": "Maximum depth allowed for a tree in GP initialization step."
+    },
+    "gp_tree_max_depth": {
+      "type": "integer",
+      "minimum": 5,
+      "description": "Maximum depth allowed for a tree in GP."
+    },
+    "gp_generations_number": {
+      "type": "integer",
+      "minimum": 10,
+      "description": "Stooping criteria: Number of repetitions."
+    },
+    "gp_simplify_frequency": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The population is simplified at each k iterations."
+    },
+    "gp_population_variation": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "How often a variation operator (3 mutation types, 2 crossover types)  is selected [0,1]."
+    },
+    "gp_aos_type": {
+      "type": "string",
+      "enum": ["aos", "epsilon-qlearning", "random"],
+      "description": "The GP operator selection variant."
+    },
+    "gp_tournament_size": {
+      "type": "integer",
+      "minimum": 2,
+      "description": "Tournament selection size"
+    },
+
     "total_instances": {
       "type": "integer",
       "minimum": 0,
@@ -80,6 +96,5 @@
       "minimum": 0,
       "description": "Not used, kept for compatibility with other agents."
     }
-  },
-  "additionalProperties": false
+  }
 }

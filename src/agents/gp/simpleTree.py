@@ -41,123 +41,101 @@ def _const_val(node) -> Union[int, float]:
 # ---------------------------------------------------------------------------
 
 def _simplify_rec(name: str, args: Sequence[Any]):
-    children = list(args)
 
-    # algebraic rules ------------------------------------------------------
-    if name == "add":
-        # scoatem +0
-        children = [c for c in children if not (_is_const(c) and _const_val(c) == 0)]
-        if not children:
-            return 0.0
-        if len(children) == 1:
-            return children[0]
+    ch = list(args)
 
-        # reguli de semn: add(x, -y) -> sub(x, y), add(-x, y) -> sub(y, x)
-        if len(children) == 2:
-            left, right = children
+    # Helpers --------------------------------------------------------------
+    def is0(x):
+        return _is_const(x) and _const_val(x) == 0
 
-            # add(x, neg(y)) -> sub(x, y)
-            if isinstance(right, tuple) and right[0] == "neg":
-                return ("sub", left, right[1])
+    def is1(x):
+        return _is_const(x) and _const_val(x) == 1
 
-            # add(neg(x), y) -> sub(y, x)
-            if isinstance(left, tuple) and left[0] == "neg":
-                return ("sub", right, left[1])
+    def isneg(x):
+        return isinstance(x, tuple) and len(x) >= 2 and x[0] == "neg"
 
-    elif name == "mul":
-        if any(_is_const(c) and _const_val(c) == 0 for c in children):
-            return 0.0
-        children = [c for c in children if not (_is_const(c) and _const_val(c) == 1)]
-        if not children:
-            return 1.0
-        if len(children) == 1:
-            return children[0]
+    def neg_arg(x):
+        return x[1]  # only call if isneg(x)
 
-
-    elif name == "sub" and len(children) == 2:
-        left, right = children
-
-        # sub(x, x) -> 0  (deja aveai regula asta)
-        if left == right:
-            return 0.0
-
-        # sub(x, 0) -> x
-        if _is_const(right) and _const_val(right) == 0:
-            return left
-
-        # sub(0, x) -> neg(x)
-        if _is_const(left) and _const_val(left) == 0:
-            return ("neg", right)
-
-        # sub(x, -c) -> add(x, c)  (c > 0 pentru că -c < 0)
-        if _is_const(right) and _const_val(right) < 0:
-            return ("add", left, -_const_val(right))
-
-        # sub(x, neg(y)) -> add(x, y)
-        if isinstance(right, tuple) and right[0] == "neg":
-            return ("add", left, right[1])
-
-
-    elif name in ("max", "min") and len(children) == 2 and children[0] == children[1]:
-        # max(x, x) -> x, min(x, x) -> x
-        return children[0]
-
-    elif name == "neg":
-        child = children[0]
-        if isinstance(child, tuple) and child[0] == "neg": # neg(neg(x)) → x
-            return child[1]
-        if _is_const(child):  # neg(constant) → constant
-            return -_const_val(child)
-        return (name, child)
-
-
-    # ----------------------- logical / if rules ---------------------------
-    # protected_if(cond, a, b) – dacă cond e boolean constant, alege direct ramura
-    if name == "protected_if" and len(children) == 3:
-        cond, a, b = children
+    # Logical / if rules ---------------------------------------------------
+    if name == "protected_if" and len(ch) == 3:
+        cond, a, b = ch
         if isinstance(cond, bool):
             return a if cond else b
 
-    # case a<a and a>a
-    if name in ("gt", "lt") and len(children) == 2 and children[0] == children[1]:
-        return False
+    if name in ("gt", "lt") and len(ch) == 2:
+        a, b = ch
+        if a == b:
+            return False
+        if _is_const(a) and _is_const(b):
+            av, bv = _const_val(a), _const_val(b)
+            return bool(av > bv) if name == "gt" else bool(av < bv)
 
-    # constant folding pentru comparații gt / lt
-    if name in ("gt", "lt") and len(children) == 2 and all(_is_const(c) for c in children):
-        a, b = (_const_val(c) for c in children)
+    # Unary neg ------------------------------------------------------------
+    if name == "neg" and len(ch) == 1:
+        x = ch[0]
+        if isneg(x):  # neg(neg(x)) -> x
+            return neg_arg(x)
+        if _is_const(x):  # neg(const) -> const
+            return -_const_val(x)
+        return ("neg", x)
+
+    # Binary algebra -------------------------------------------------------
+    if name == "add" and len(ch) == 2:
+        a, b = ch
+        if is0(a): return b
+        if is0(b): return a
+        if isneg(b): return ("sub", a, neg_arg(b))  # add(x, neg(y)) -> sub(x, y)
+        if isneg(a): return ("sub", b, neg_arg(a))  # add(neg(x), y) -> sub(y, x)
+
+    if name == "sub" and len(ch) == 2:
+        a, b = ch
+        if a == b: return 0.0
+        if is0(b): return a
+        if is0(a): return ("neg", b)
+        if _is_const(b) and _const_val(b) < 0:  # sub(x, -c) -> add(x, c)
+            return ("add", a, -_const_val(b))
+        if isneg(b):  # sub(x, neg(y)) -> add(x, y)
+            return ("add", a, neg_arg(b))
+
+    if name == "mul" and len(ch) == 2:
+        a, b = ch
+        if is0(a) or is0(b): return 0.0
+        if is1(a): return b
+        if is1(b): return a
+
+    if name in ("min", "max") and len(ch) == 2 and ch[0] == ch[1]:
+        return ch[0]
+
+    # Constant folding -----------------------------------------------------
+    if all(_is_const(x) for x in ch):
+        vals = [_const_val(x) for x in ch]
         try:
-            if name == "gt":
-                return bool(a > b)
-            else:  # "lt"
-                return bool(a < b)
-        except Exception:  # pragma: no cover
+            if name == "add":          return vals[0] + vals[1]
+            if name == "sub":          return vals[0] - vals[1]
+            if name == "mul":          return _op.mul(vals[0], vals[1])
+            if name == "min":          return min(vals)
+            if name == "max":          return max(vals)
+            if name == "protected_div": return 1.0 if vals[1] == 0 else vals[0] / vals[1]
+            # neg handled earlier, but harmless if it gets here
+            if name == "neg":          return -vals[0]
+        except Exception:
             pass
 
-    # constant folding -----------------------------------------------------
-    if all(_is_const(c) for c in children):
-        consts = [_const_val(c) for c in children]
-        try:
-                if name == "add":
-                    return sum(consts)
-                elif name == "sub":
-                    return consts[0] - consts[1]
-                elif name == "mul":
-                    return _op.mul(consts[0], consts[1])
-                elif name == "max":
-                    return max(consts)
-                elif name == "min":
-                    return min(consts)
-                elif name == "neg":
-                    return -consts[0]
-                elif name == "protected_div":
-                    return 1.0 if consts[1] == 0 else consts[0] / consts[1]
-        except Exception:  # pragma: no cover
-            pass
+    # Canonical cleanup for n-ary add/mul (optional) ----------------------
+    # If your trees are strictly binary, you can drop this block.
+    if name == "add":
+        ch = [x for x in ch if not is0(x)]
+        if not ch: return 0.0
+        if len(ch) == 1: return ch[0]
+    if name == "mul":
+        if any(is0(x) for x in ch): return 0.0
+        ch = [x for x in ch if not is1(x)]
+        if not ch: return 1.0
+        if len(ch) == 1: return ch[0]
 
-    if len(children) == 1:
-        return children[0]
-
-    return (name, *children)
+    # Default --------------------------------------------------------------
+    return (name, *ch) if len(ch) != 1 else ch[0]
 
 
 # ---------------------------------------------------------------------------
@@ -222,15 +200,22 @@ def simplify_individual(ind: gp.PrimitiveTree, pset):
         name, *children = expr
         return _simplify_rec(name, [walk(c) for c in children])
 
-    simplified_nested = walk(nested)
+    #simplified_nested = walk(nested)
+    simplified_nested = nested
+    for _ in range(5):  # limită de siguranță
+        new_nested = walk(simplified_nested)
+        if new_nested == simplified_nested:
+            break
+        simplified_nested = new_nested
     raw_expr = _from_nested(simplified_nested, pset)
 
     try:
         raw_tree = gp.PrimitiveTree.from_string(raw_expr, pset)
         ret = type(ind)(raw_tree)
-        ret.fitness.values = ind.fitness.values
         return ret
-    except Exception:  # Any parser error → give back original
+    except Exception as e:  # Any parser error → give back original
+        print("[simplify] parse failed for:", raw_expr)
+        print("[simplify] error:", repr(e))
         return ind
 
 
