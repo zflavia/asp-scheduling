@@ -1,0 +1,28 @@
+{
+  "best_ind": [
+    "max(O_Flex + O_Path_MinLen + O_Flex, max(max(max(max(max(min(O_Path_OpNo, O_MeanPT), O_Flex), max((max(O_Flex, O_Path_OpNo)) + O_MeanPT, O_Path_MinLen)), 1.04), O_Flex), O_Path_OpNo))",
+    "-((max(M_CT_B, E_PT)) + M_CT_A - M_QL + M_OP - (min(M_RT, M_UT - M_QL)) + (min(E_PT + E_PT, M_CT_A + M_OP)) + (min(E_PT + E_PT, M_CT_B - M_QL)))"
+  ],
+  "hof": [
+    [
+      "max(O_Flex + O_Path_MinLen + O_Flex, max(max(max(max(max(min(O_Path_OpNo, O_MeanPT), O_Flex), max((max(O_Flex, O_Path_OpNo)) + O_MeanPT, O_Path_MinLen)), 1.04), O_Flex), O_Path_OpNo))",
+      "-((max(M_CT_B, E_PT)) + M_CT_A - M_QL + M_OP - (min(M_RT, M_UT - M_QL)) + (min(E_PT + E_PT, M_CT_A + M_OP)) + (min(E_PT + E_PT, M_CT_B - M_QL)))"
+    ],
+    [
+      "max(O_Flex + O_Path_MinLen + O_Flex, max(max(max(max(max(min(O_Path_OpNo, O_MeanPT), O_Flex), (max(O_Flex, O_Path_OpNo)) + O_MeanPT), 1.04), O_Flex), O_Path_OpNo))",
+      "-((max(M_CT_B, E_PT)) + M_CT_A - M_QL + M_OP - (M_UT - M_QL) + (min(E_PT + E_PT, M_CT_A + M_OP)) + (min(E_PT + E_PT, M_CT_B - M_QL)))"
+    ],
+    [
+      "max(O_Flex + O_Path_MinLen + O_Flex, max(max(max(max(max(O_Path_OpNo, O_Flex), max((max(O_Flex, O_Path_OpNo)) + O_MeanPT, O_Path_MinLen)), 1.04), O_Flex), O_Path_OpNo))",
+      "-((max(M_CT_B, E_PT)) + M_CT_A - M_QL + M_OP - (M_UT - M_QL) + (min(E_PT + E_PT, M_CT_A + M_OP)) + (min(E_PT + E_PT, M_CT_B - M_QL)))"
+    ],
+    [
+      "max((max(O_Path_MinLen, -O_Path_MinLen)) + O_Flex, max(max(max(max(max(O_MeanPT, O_Path_OpNo), O_MeanPT), 2.24), O_MeanPT + O_Path_OpNo), O_MeanPT))",
+      "-(M_CT_B + M_CT_A - M_QL + M_OP - ((min(M_RT / E_PT, M_CT_A + M_OP)) - M_QL) + (min(M_CT_A * 1.64 - M_UT, min(E_PT + E_PT, M_CT_B + M_CT_A - E_PT + M_OP))) + (min(E_PT + E_PT, M_CT_B * 1.64 - M_QL)))"
+    ],
+    [
+      "max((max(O_Path_MinLen, -O_Flex)) + O_Flex, max(max(max(max(O_MeanPT + O_Path_OpNo, O_MeanPT), 2.24), O_MeanPT + O_Path_OpNo), O_Path_MinLen))",
+      "-(M_CT_B + M_CT_A - M_QL + M_OP - ((min(M_RT / E_PT, M_CT_A + M_OP)) - M_QL) + (min(M_CT_B + M_CT_A - M_QL + M_OP - (min(E_PT, M_UT - M_QL)), min(E_PT + E_PT, M_CT_B * (M_CT_A - E_PT) + M_OP))) + (min(E_PT + E_PT, M_CT_B * 1.64 - M_QL)))"
+    ]
+  ]
+}

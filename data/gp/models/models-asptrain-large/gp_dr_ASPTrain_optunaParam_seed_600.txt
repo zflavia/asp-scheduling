@@ -1,0 +1,28 @@
+{
+  "best_ind": [
+    "O_MinPT * (max(O_WT / (min(O_Flex, min(min(O_MeanPT, O_Path_OpNo), min(max(O_Path_OpNo, min(O_MeanPT, O_Path_OpNo)), 0.22)))), (min(O_Path_MinLen, O_MeanPT + 0.22)) / (min(O_Flex, O_Flex + O_Path_OpNo - (min(O_MeanPT, O_Path_OpNo))))))",
+    "min(E_PT * M_OP * (protected_if(False, M_QL, M_UT)) - M_OP * M_QD, (min(max(0.0, (min(min(M_OP, M_CT_B), max(M_CT_B, M_OP))) - M_OP), max(E_PT / M_CT_A, -M_CT_A))) - (M_CT_B + M_OP) - M_CT_B)"
+  ],
+  "hof": [
+    [
+      "O_MinPT * (max(O_WT / (min(O_Flex, min(min(O_MeanPT, O_Path_OpNo), min(max(O_Path_OpNo, min(O_MeanPT, O_Path_OpNo)), 0.22)))), (min(O_Path_MinLen, O_MeanPT + 0.22)) / (min(O_Flex, O_Flex + O_Path_OpNo - (min(O_MeanPT, O_Path_OpNo))))))",
+      "min(E_PT * M_OP * (protected_if(False, M_QL, M_UT)) - M_OP * M_QD, (min(max(0.0, (min(min(M_OP, M_CT_B), max(M_CT_B, M_OP))) - M_OP), max(E_PT / M_CT_A, -M_CT_A))) - (M_CT_B + M_OP) - M_CT_B)"
+    ],
+    [
+      "O_MinPT * (max(O_WT / (min(O_Flex, min(min(O_MeanPT, min(4.63, O_Flex)), min(max(O_Path_OpNo, min(O_WT, O_Path_OpNo)), 0.22)))), (min(O_Path_MinLen, O_MeanPT + O_Path_OpNo)) / (min(O_Flex, O_MinPT - (min(O_MeanPT, O_Path_OpNo))))))",
+      "min(M_CT_B - M_OP * M_QD, (min(0.0, M_RT)) - (M_CT_B + M_OP) - M_CT_B)"
+    ],
+    [
+      "O_MinPT * (max(O_WT / (min(O_Flex, min(min(O_MeanPT, O_Path_OpNo), 0.22))), (min(O_Path_MinLen, O_MeanPT + 0.22)) / (min(O_Flex, O_MinPT - O_Path_OpNo - (min(O_MeanPT, O_Path_OpNo))))))",
+      "min(E_PT * M_OP * M_UT - M_OP * M_QD, (min(max(0.0, min(min(M_OP, M_CT_B), max(M_CT_B, M_OP))), M_RT)) - (M_CT_B + M_OP) - M_CT_B)"
+    ],
+    [
+      "O_MinPT * (max(O_WT / (min(O_Flex, min(max(O_Path_OpNo, O_Flex), min(max(O_Path_OpNo, min(O_MeanPT, O_Flex)), 0.22)))), (min(O_Path_MinLen, O_MeanPT + 0.22)) / (min(O_Flex, O_MinPT - (min(O_MeanPT, O_Path_OpNo))))))",
+      "min(min(M_CT_B - M_OP * M_QD - M_QL, M_OP), (max(0.0, (min(min(M_OP, M_CT_B), max(M_CT_B, M_OP))) - M_OP)) / M_RT - (M_CT_B + M_OP) - M_CT_B)"
+    ],
+    [
+      "O_MinPT * (max(O_WT / (min(O_Flex, min(max(O_Path_OpNo, O_Flex), min(O_Path_OpNo + (min(O_MeanPT, O_Path_OpNo)), 0.22)))), (min(O_Path_MinLen, O_MeanPT + 0.22)) / (min(O_Flex, O_Path_MinLen * (O_MeanPT - (min(O_MeanPT, O_Path_OpNo)))))))",
+      "min(min(M_CT_B - M_OP * M_QD - M_QL, M_OP), (min(max(0.0, (min(M_OP, M_RT)) + 4.21 - (M_CT_B + M_OP)), M_RT)) - (M_CT_B + M_OP) - M_CT_B)"
+    ]
+  ]
+}

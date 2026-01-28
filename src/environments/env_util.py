@@ -24,8 +24,6 @@ def backward_planning_completion_time(operation: Task,
     # available during (Sc, Cc); Sc, Cc are ideal starting and completion times,
     # respectively. Else select max{Se} as the latest available starting time such that
 
-
-
     duration = operation.execution_times_setup[m_idx] #duration of task exec on mach
     start =  operation.last_child_scheduled_finished
     intrevals_no = machines[m_idx].get_int_len()

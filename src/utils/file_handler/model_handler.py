@@ -11,7 +11,7 @@ from pathlib import Path
 
 # constants
 MODEL_DATA_DIRECTORY: Path = Path(__file__).parent.parent.parent.parent / 'data'
-EXPERIMENT_SAVE_PATH: str = 'models'
+EXPERIMENT_SAVE_PATH: str = 'models-asptrain-small'
 MODEL_SAVE_FILE: str = "example_agent"
 
 

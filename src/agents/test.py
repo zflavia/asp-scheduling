@@ -13,6 +13,7 @@ When running the file from a console you can use --plot-ganttchart to show the g
 """
 import argparse
 import json
+from time import time
 
 from matplotlib import pyplot as plt
 from typing import Tuple, List, Dict, Union
@@ -86,6 +87,7 @@ def run_episode(env, model, heuristic_id: Union[str, None], handler: EvaluationH
     :return: None
 
     """
+    strat_time = time()
     done = False
     total_reward = 0
 
@@ -120,12 +122,14 @@ def run_episode(env, model, heuristic_id: Union[str, None], handler: EvaluationH
 
         total_reward += b[1]
         done = b[2]
+
+    end_time = time()
     # store episode in object
     mean_reward = total_reward / steps
     if sp_type == 'asp' and action_mode == 'heuristic' and heuristic_id == 'LETSA':
-        handler.record_environment_episode(env, mean_reward, use_letsa=True)
+        handler.record_environment_episode(env, mean_reward, use_letsa=True, running_time = end_time-strat_time)
     else:
-        handler.record_environment_episode(env, mean_reward)
+        handler.record_environment_episode(env, mean_reward, running_time = end_time-strat_time)
 
 
 def test_solver(config: Dict, data_test: List[List[Task]], logger: Logger) -> Dict:
@@ -167,7 +171,7 @@ def test_solver(config: Dict, data_test: List[List[Task]], logger: Logger) -> Di
 def log_results(plot_logger: Logger, inter_test_idx: Union[int, None], heuristic: str,
                 env, handler: EvaluationHandler) -> None:
     """
-    Calls the logger object to save the test results from this episode as table (e.g. makespan mean, gantt chart)
+    Calls the logger object to save the test gp from this episode as table (e.g. makespan mean, gantt chart)
 
     :param plot_logger: Logger object
     :param inter_test_idx: Index of current test. Can be None
@@ -204,7 +208,7 @@ def test_model(env_config: Dict, data: List[List[Task]], logger: Logger, plot: b
     :param data: Data containing problem instances used for testing
     :param logger: Logger object
     :param plot: Plot a gantt chart of all tests
-    :param log_episode: If true, calls the log function to log episode results as table
+    :param log_episode: If true, calls the log function to log episode gp as table
     :param model: {None, StableBaselines Model}
     :param heuristic_id: ID that identifies the used heuristic
     :param intermediate_test_idx: Step number after which the test is performed. Is used to annotate the log
@@ -236,12 +240,12 @@ def test_model(env_config: Dict, data: List[List[Task]], logger: Logger, plot: b
         # print('Is the schedule valid? Answer: ', environment.is_asp_schedule_valid(is_letsa=is_letsa))
 
 
-    #  do not plot results
-    # plot results
+    #  do not plot gp
+    # plot gp
     # if plot:
     #     environment.render(mode="image")
 
-    # return episode results, using EvaluationHandler properties and function
+    # return episode gp, using EvaluationHandler properties and function
     return evaluation_handler.evaluate_test()
 
 
@@ -250,14 +254,14 @@ def test_model_and_heuristic(config: dict, model, data_test: List[List[Task]], l
                              run_heuristics = None, data_test_names = [],
                              gp_individual_trees_no:int = None) -> dict:
     """
-    Test model and agent_heuristics len(data) times and returns results
+    Test model and agent_heuristics len(data) times and returns gp
 
     :param config: Testing config
     :param model: Model to be tested. E.g. PPO object
     :param data_test: Dataset with instances to be used for the test
     :param logger: Logger object
     :param plot_ganttchart: Plot a gantt chart of all tests
-    :param log_episode: If true, calls the log function to log episode results as table
+    :param log_episode: If true, calls the log function to log episode gp as table
     :param data_test_names: names of the files with test instances
 
     :return: Dict with evaluation_result dicts for the agent and all heuristics which were tested
@@ -289,7 +293,7 @@ def test_model_and_heuristic(config: dict, model, data_test: List[List[Task]], l
     #  comment solver
     # test solver and calculate optimality gap
     # res = test_solver(config, data_test, logger)
-    # results.update({'solver': res})
+    # gp.update({'solver': res})
 
     results = EvaluationHandler.add_solver_gap_to_results(results)
 
@@ -364,7 +368,7 @@ def main(external_config=None):
                 gp_individual_trees_no = 2
 
             gp_evaluation_type = config.get('evaluation_type')
-            #print("!!!!!!!!before results", gp_evaluation_type)
+            #print("!!!!!!!!before gp", gp_evaluation_type)
             if gp_evaluation_type == 'assemble-test':
                 print("model", len(model))
                 rez={"runs":[]}

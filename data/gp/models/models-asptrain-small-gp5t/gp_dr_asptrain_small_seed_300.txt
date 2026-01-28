@@ -1,0 +1,20 @@
+{
+  "best_ind": [
+    "max(O_MeanPT, O_MeanPT / O_MinPT * O_MeanPT / O_MinPT * O_Path_MinLen / O_Flex)",
+    "-(M_CT_B - M_OP)"
+  ],
+  "hof": [
+    [
+      "max(O_MeanPT, O_MeanPT / O_MinPT * O_MeanPT / O_MinPT * O_Path_MinLen / O_Flex)",
+      "-(M_CT_B - M_OP)"
+    ],
+    [
+      "max(O_MeanPT, O_MeanPT / O_MinPT * O_MeanPT / O_MinPT * O_Path_MinLen / O_Flex)",
+      "-(M_CT_B + 0.63)"
+    ],
+    [
+      "max(O_MeanPT, O_MeanPT / O_MinPT * O_MeanPT / O_MinPT * O_Path_MinLen / O_Flex)",
+      "-M_CT_B"
+    ]
+  ]
+}

@@ -1,6 +1,6 @@
 """
 PPO implementation inspired by the StableBaselines3 implementation.
-To reuse trained models, you can make use of the save and load function
+To reuse trained models-asptrain-small, you can make use of the save and load function
 To adapt policy and value network structure, specify the policy and value layer and activation parameter
 in your train config or change the constants in this file
 """

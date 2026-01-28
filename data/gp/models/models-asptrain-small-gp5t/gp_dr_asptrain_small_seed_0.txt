@@ -1,0 +1,20 @@
+{
+  "best_ind": [
+    "(max(max((-4.82 - O_Flex) * -O_MeanPT + -4.82 - -O_MeanPT, max(O_WT, O_Path_MinLen * (O_WT + O_Path_MinLen + 2.32 + O_MeanPT))), O_Path_MinLen * (-O_MeanPT + -O_MeanPT / -O_Flex + O_MeanPT))) / O_Path_OpNo",
+    "-(max(max(M_CT_B, M_CT_B), M_CT_B))"
+  ],
+  "hof": [
+    [
+      "(max(max((-4.82 - O_Flex) * -O_MeanPT + -4.82 - -O_MeanPT, max(O_WT, O_Path_MinLen * (O_WT + O_Path_MinLen + 2.32 + O_MeanPT))), O_Path_MinLen * (-O_MeanPT + -O_MeanPT / -O_Flex + O_MeanPT))) / O_Path_OpNo",
+      "-(max(max(M_CT_B, M_CT_B), M_CT_B))"
+    ],
+    [
+      "(max(max((-4.82 - O_Flex) * -O_MeanPT + -4.82 - -O_MeanPT, max(O_WT, O_Path_MinLen * (O_WT + O_Path_MinLen + 2.32 + O_MeanPT))), O_Path_MinLen * (-O_MeanPT + -O_MeanPT / -O_Flex + O_MeanPT))) / O_Path_OpNo",
+      "-(max(max(M_CT_B, M_QL), M_QL))"
+    ],
+    [
+      "(max(max((-4.82 - O_Flex) * -O_MeanPT + -4.82 - -O_MeanPT, max(O_WT, O_Path_MinLen * (O_WT + O_Path_MinLen + 2.32 + O_MeanPT))), O_Path_MinLen * (-O_MeanPT + -O_MeanPT / -O_Flex + O_MeanPT))) / O_Path_OpNo",
+      "-(max(max(M_CT_B, M_CT_B), M_QL))"
+    ]
+  ]
+}

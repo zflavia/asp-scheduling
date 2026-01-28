@@ -51,7 +51,7 @@
     },
     "gp_tree_initial_max_depth": {
       "type": "integer",
-      "minimum": 3,
+      "minimum": 2,
       "description": "Maximum depth allowed for a tree in GP initialization step."
     },
     "gp_tree_max_depth": {

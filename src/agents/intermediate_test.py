@@ -74,7 +74,7 @@ class IntermediateTest:
             tardiness_mean = evaluation_results['tardiness_mean']
             makespan_mean = evaluation_results['makespan_mean']
 
-            # log results
+            # log gp
             self.logger.record(
                 {
                     'interm_test/mean_reward': rwd_mean,

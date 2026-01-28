@@ -524,7 +524,7 @@ class GPBase:
             from src.agents.gp.gp_alg_aos import GP_AOS
             from src.agents.gp.gp_alg_disp_route import GP_Disp_Route
             if issubclass(cls, GP_AOS):
-                return toolbox.compile(expr=best), best
+                return [toolbox.compile(expr=best)], best
             elif issubclass(cls, GP_Disp_Route):
                 return [toolbox.compile_disp(expr=best[0]),
                         toolbox.compile_route(expr=best[1])], best
@@ -534,11 +534,10 @@ class GPBase:
             for el in data['hof']:
                 from src.agents.gp.gp_alg_aos import GP_AOS
                 from src.agents.gp.gp_alg_disp_route import GP_Disp_Route
-                print(cls)
                 print("GP_DS?", issubclass(cls, GP_Disp_Route))
                 print("GP_AOS?", issubclass(cls, GP_AOS))
                 if issubclass(cls, GP_AOS):
-                    assemble_fct.append(toolbox.compile(expr=el))
+                    assemble_fct.append([toolbox.compile(expr=el)])
                 elif issubclass(cls, GP_Disp_Route):
                     assemble_fct.append([toolbox.compile_disp(expr=el[0],),
                                          toolbox.compile_route(expr=el[1])])

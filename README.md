@@ -189,7 +189,7 @@ The run.py script generates all combinations of features as binary masks for tra
 Run the script from the command line with the desired arguments:
 
 ```sh
-python run.py --results_dir 'results/custom/' -trainfp 'path/to/train_config.yaml' -testfp 'path/to/test_config.yaml' --upper_bound 1000 --lower_bound 10
+python run.py --results_dir 'gp/custom/' -trainfp 'path/to/train_config.yaml' -testfp 'path/to/test_config.yaml' --upper_bound 1000 --lower_bound 10
 ```
 e.g.  python run.py --results_dir results/asp_tubes_2 -trainfp training/ppo/config_ASP_TUBES_2.yaml -testfp testing/ppo/config_ASP_TUBES_TESTING_2.yaml --upper_bound 1023 --lower_bound 49
 

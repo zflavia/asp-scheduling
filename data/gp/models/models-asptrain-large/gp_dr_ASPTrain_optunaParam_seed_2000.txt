@@ -1,0 +1,28 @@
+{
+  "best_ind": [
+    "(max(max(max(max(max(O_MeanPT * O_MinPT, O_MinPT), O_MinPT), O_MeanPT), max(O_Path_MinLen * O_Flex + O_Path_OpNo, max(O_MeanPT, max(max(O_WT, O_MeanPT), max(O_Flex, O_MeanPT * O_MinPT))))), max(max(max(max(max(O_Path_MinLen, O_MeanPT * O_WT), O_MinPT), O_Path_MinLen * O_WT + O_MinPT), O_MeanPT), max(max(O_Flex, O_MinPT * O_MinPT), max(min(-(O_Flex - O_MinPT), O_Path_MinLen * O_WT + O_MinPT), O_MinPT * O_MinPT))))) * O_Path_MinLen / (min(O_Flex, max(O_Flex / O_MeanPT, O_Path_MinLen * (O_Path_MinLen * O_WT + O_MinPT) + O_MeanPT)))",
+    "(min(M_UT + M_QL, M_QL / (M_OP - M_QD) / ((M_OP - M_QD) / (M_OP - M_CT_A) - M_CT_A))) - M_CT_B"
+  ],
+  "hof": [
+    [
+      "(max(max(max(max(max(O_MeanPT * O_MinPT, O_MinPT), O_MinPT), O_MeanPT), max(O_Path_MinLen * O_Flex + O_Path_OpNo, max(O_MeanPT, max(max(O_WT, O_MeanPT), max(O_Flex, O_MeanPT * O_MinPT))))), max(max(max(max(max(O_Path_MinLen, O_MeanPT * O_WT), O_MinPT), O_Path_MinLen * O_WT + O_MinPT), O_MeanPT), max(max(O_Flex, O_MinPT * O_MinPT), max(min(-(O_Flex - O_MinPT), O_Path_MinLen * O_WT + O_MinPT), O_MinPT * O_MinPT))))) * O_Path_MinLen / (min(O_Flex, max(O_Flex / O_MeanPT, O_Path_MinLen * (O_Path_MinLen * O_WT + O_MinPT) + O_MeanPT)))",
+      "(min(M_UT + M_QL, M_QL / (M_OP - M_QD) / ((M_OP - M_QD) / (M_OP - M_CT_A) - M_CT_A))) - M_CT_B"
+    ],
+    [
+      "(max(max(max(max(max(max(O_Flex, O_MeanPT * O_MinPT), O_MinPT), O_MinPT), O_MeanPT), max(O_Path_MinLen * O_Flex + O_Path_OpNo, max(O_MeanPT, max(O_MeanPT, max(O_Flex, O_MeanPT * O_MinPT))))), max(max(max(max(max(O_Path_MinLen, O_MeanPT * O_WT), O_MinPT), O_Path_MinLen * O_WT + O_MinPT), O_MeanPT), max(max(O_Flex, O_MinPT * (protected_if(lt(O_Path_MinLen, O_Path_OpNo), O_Flex / -2.99, min(O_WT, O_Flex)))), max(min(-(O_Flex - O_MinPT), O_Path_MinLen * O_WT + O_MinPT), O_MinPT * O_MinPT))))) * O_Path_MinLen / (min(O_Flex, max(O_Flex / O_MeanPT, O_Path_MinLen * (O_Path_MinLen * O_WT + O_MinPT) + O_MeanPT)))",
+      "(min(M_UT + M_QL, M_QL / (M_OP - M_QD) / (-M_CT_A / M_OP - M_CT_A))) - M_CT_B"
+    ],
+    [
+      "(max(max(max(max(max(max(O_Flex, O_MeanPT * O_MinPT), O_MinPT), O_MinPT), O_MeanPT), max(O_Path_MinLen * O_Flex + O_Path_OpNo, max(O_MeanPT, max(max(O_WT, O_MeanPT), max(O_Flex, O_Flex * O_MinPT))))), max(max(max(max(max(O_MeanPT, O_MeanPT * O_WT), O_MinPT), O_Path_MinLen * O_WT + O_MinPT), O_MeanPT), max(max(O_Flex, O_MinPT * O_MinPT), max(min(-(O_Flex - O_MinPT), O_Path_MinLen * O_WT + O_MinPT), O_MinPT * O_MinPT))))) * O_Path_MinLen / (min(O_Flex, max(O_Flex / O_MeanPT, O_Path_MinLen * (O_Path_MinLen * O_WT + O_MinPT) + O_MeanPT)))",
+      "(min(M_UT + M_QL, M_QL / (M_OP - M_CT_A) / (1.28 / (M_OP - M_CT_B) / (M_OP - M_CT_A) - M_QD))) - M_CT_B"
+    ],
+    [
+      "(max(max(max(max(max(max(O_Flex, O_MeanPT * O_MinPT), O_MinPT), O_MinPT), O_MeanPT), max(O_Path_MinLen * O_Flex + O_Path_OpNo, max(O_MeanPT, max(max(O_WT, O_MeanPT), max(O_Flex, O_MeanPT * O_MinPT))))), max(max(max(max(max(O_MeanPT, O_MeanPT * O_WT), O_MinPT), O_Path_MinLen * O_WT + O_MinPT), O_MeanPT), max(max(O_Flex, O_MinPT * O_MinPT), min(-(O_Flex - O_MinPT), O_Path_MinLen * O_WT + O_MinPT))))) * O_Path_MinLen / (min(O_Flex, max(O_Flex / O_MeanPT, O_Path_MinLen * (O_Path_MinLen * O_WT + O_MinPT) + O_MeanPT)))",
+      "(min(M_UT + M_QL, M_QL / (M_OP - M_QD) / (1.28 / M_CT_B / (M_OP - M_CT_A) - M_CT_A))) - M_CT_B"
+    ],
+    [
+      "(max(max(O_Path_MinLen * O_Flex + O_Path_OpNo, max(O_MeanPT, max(max(O_WT, O_MeanPT), max(O_Flex, O_MeanPT * O_MinPT)))), max(max(max(max(max(O_Path_MinLen, O_MeanPT * O_WT), O_MinPT), O_Path_MinLen * O_WT + O_MinPT), O_MeanPT), max(max(O_Flex, O_MinPT * O_MinPT), max(min(-(O_Flex - O_MinPT), O_Path_MinLen * O_WT + O_MinPT), O_MinPT * O_MinPT))))) * O_Path_MinLen / (min(O_Flex, max(O_Flex / O_MeanPT, O_Path_MinLen * (O_Path_MinLen * O_WT + O_MinPT) + O_MeanPT)))",
+      "(min(M_UT + M_QL, M_QL / (M_OP - M_QD) / (1.28 / (M_OP - M_QD) / M_OP - M_CT_A))) - M_CT_B"
+    ]
+  ]
+}

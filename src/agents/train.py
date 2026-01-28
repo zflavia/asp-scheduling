@@ -30,7 +30,7 @@ from datetime import datetime
 
 def final_evaluation(config: dict, data_test: List[List[Task]], logger: Logger):
     """
-    Evaluates the trained model and logs the results
+    Evaluates the trained model and logs the gp
 
     :param config: Training config
     :param data_test: Dataset with instances to be used for the test
@@ -159,7 +159,7 @@ def get_parser_args():
     # optuna flags
     parser.add_argument("--optuna", action="store_true")
     parser.add_argument("--n-trials", type=int, default=50)
-    parser.add_argument("--study-name", type=str, default="gp_aos_tuning")
+    parser.add_argument("--study-name", type=str, default="gp_dr_tuning")
     parser.add_argument("--storage", type=str, default=None)  # ex: sqlite:///optuna.db
     parser.add_argument("--seed", type=int, default=42)  # sampler seed
     #parser.add_argument("--direction", type=str, default="minimize")
@@ -185,23 +185,23 @@ def build_objective(base_cfg: dict, mode: str = "mean_over_seeds"):
         cfg = deepcopy(base_cfg)
 
         # ---- Search space (adaptează dacă vrei range-uri mai mari) ----
-        # cfg["gp_population_size"] = trial.suggest_int("population_size", 10, 200, step=10)
-        # cfg["gp_tree_max_depth"] = trial.suggest_int("gp_tree_max_depth", 2, 10)
-        # cfg["gp_tree_initial_max_depth"] = trial.suggest_int("gp_tree_initial_max_depth", 2, 5)
-        # cfg["gp_population_variation"] = trial.suggest_float("gp_population_variation", 0.5, 0.95)
-        # cfg["gp_generations_number"] = trial.suggest_int("generations_number", 10, 200, step=10)
-        # cfg["gp_simplify_frequency"] = trial.suggest_int("simplify_frequency", 5, 50, step=5)
-        # cfg["gp_tournament_size"] = trial.suggest_int("simplify_frequency", 5, 50, step=5)
-        # cfg["gp_aos_type"] = trial.suggest_categorical("gp_aos_type", ["aos", "epsilon-qlearning", "random"])
-
-        cfg["gp_population_size"] = trial.suggest_int("population_size", 10, 40, step=10)
-        cfg["gp_tree_max_depth"] = trial.suggest_int("gp_tree_max_depth", 2, 8)
+        cfg["gp_population_size"] = trial.suggest_int("population_size", 50, 400, step=50)
+        cfg["gp_tree_max_depth"] = trial.suggest_int("gp_tree_max_depth", 2, 10)
         cfg["gp_tree_initial_max_depth"] = trial.suggest_int("gp_tree_initial_max_depth", 2, 5)
-        cfg["gp_population_variation"] = trial.suggest_float("gp_population_variation", 0.85, 0.95)
-        cfg["gp_generations_number"] = trial.suggest_int("generations_number", 50, 150, step=50)
-        cfg["gp_simplify_frequency"] = trial.suggest_int("simplify_frequency", 10, 50, step=10)
-        cfg["gp_tournament_size"] = trial.suggest_int("simplify_frequency", 2, 6, step=2)
+        #cfg["gp_population_variation"] = trial.suggest_float("gp_population_variation", 0.5, 0.95)
+        cfg["gp_generations_number"] = trial.suggest_int("generations_number", 10, 200, step=10)
+        cfg["gp_simplify_frequency"] = trial.suggest_int("simplify_frequency", 5, 50, step=5)
+        #cfg["gp_tournament_size"] = trial.suggest_int("gp_tournament_size", 5, 50, step=5)
         cfg["gp_aos_type"] = trial.suggest_categorical("gp_aos_type", ["aos", "epsilon-qlearning", "random"])
+
+        # cfg["gp_population_size"] = trial.suggest_int("population_size", 10, 40, step=10)
+        # cfg["gp_tree_max_depth"] = trial.suggest_int("gp_tree_max_depth", 2, 8)
+        # cfg["gp_tree_initial_max_depth"] = trial.suggest_int("gp_tree_initial_max_depth", 2, 5)
+        # cfg["gp_population_variation"] = trial.suggest_float("gp_population_variation", 0.85, 0.95)
+        # cfg["gp_generations_number"] = trial.suggest_int("generations_number", 50, 150, step=50)
+        # cfg["gp_simplify_frequency"] = trial.suggest_int("simplify_frequency", 10, 50, step=10)
+        # cfg["gp_tournament_size"] = trial.suggest_int("simplify_frequency", 2, 6, step=2)
+        # cfg["gp_aos_type"] = trial.suggest_categorical("gp_aos_type", ["aos", "epsilon-qlearning", "random"])
 
         # ---- Seed handling ----
         if mode == "pick_one_seed":
@@ -233,7 +233,9 @@ if __name__ == "__main__":
 
     else:
         print('Start optuna study')
+
         sampler = optuna.samplers.TPESampler(seed=args.seed)
+
         study = optuna.create_study(
             study_name=args.study_name,
             direction="minimize",

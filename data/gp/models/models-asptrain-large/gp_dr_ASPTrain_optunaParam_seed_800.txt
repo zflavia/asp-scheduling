@@ -1,0 +1,28 @@
+{
+  "best_ind": [
+    "max(O_MeanPT, max(-2.72, max(O_MeanPT, max(max(O_MeanPT, -(-1.37 * O_Path_MinLen)), O_Path_MinLen))))",
+    "-(M_CT_B + E_PT + M_CT_A + M_RT / (M_QD + M_CT_B + M_CT_B) + M_QL / M_UT / (M_CT_A + M_OP) / (E_PT + M_CT_A + E_PT / (M_QD + M_CT_B + M_CT_B)))"
+  ],
+  "hof": [
+    [
+      "max(O_MeanPT, max(-2.72, max(O_MeanPT, max(max(O_MeanPT, -(-1.37 * O_Path_MinLen)), O_Path_MinLen))))",
+      "-(M_CT_B + E_PT + M_CT_A + M_RT / (M_QD + M_CT_B + M_CT_B) + M_QL / M_UT / (M_CT_A + M_OP) / (E_PT + M_CT_A + E_PT / (M_QD + M_CT_B + M_CT_B)))"
+    ],
+    [
+      "max(-O_Path_OpNo, max(-2.72, max(O_MeanPT, -(-1.37 * O_Path_MinLen))))",
+      "-(M_CT_B + E_PT + M_CT_A + M_RT / (M_QD + M_CT_B + M_CT_B) + M_QL / M_UT / (M_CT_A + M_QL / E_PT) / (E_PT + M_OP + (max(E_PT, M_CT_A))))"
+    ],
+    [
+      "max(max(O_MinPT, max(O_MeanPT, -(-1.37 * O_Path_MinLen))), -(-1.37 * O_Path_MinLen))",
+      "-(M_CT_B + E_PT + M_CT_A + M_RT / (M_RT + M_QD) + (min(max(E_PT, 3.92), E_PT + M_CT_A + M_OP)) / (E_PT + E_PT + M_QD))"
+    ],
+    [
+      "max(max(max(max(O_MeanPT, -(-1.37 * O_Path_MinLen)), O_MeanPT), max(max(O_MeanPT, -(-1.37 * O_Path_MinLen)), O_Path_MinLen)), O_Path_MinLen)",
+      "-(M_CT_B + E_PT + M_CT_A + M_RT / M_RT + (min(max(M_OP, 3.92), E_PT + M_QL + M_OP)) / (E_PT + M_QD))"
+    ],
+    [
+      "max(max(-(-1.37 * O_Path_MinLen), max(max(O_MeanPT, -(-1.37 * O_Path_MinLen)), O_Path_MinLen)), O_Path_MinLen)",
+      "-(M_CT_B + E_PT + M_CT_A + M_RT / (M_QD + M_QD + M_CT_B) + (min(max(E_PT, 3.92), E_PT + M_CT_A + M_OP)) / (E_PT + M_QD))"
+    ]
+  ]
+}

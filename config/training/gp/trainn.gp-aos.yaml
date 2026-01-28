@@ -18,7 +18,7 @@ total_timesteps: 0
 saved_model_name: gp_aos_deep_aos
 
 # (O)   [string]  Set a directory where you want to save the agent model
-experiment_save_path: models
+experiment_save_path: models-asptrain-small
 
 # (R)   [int]  Seed for all pseudo random generators (random, numpy, torch)
 seed: [0, 200]

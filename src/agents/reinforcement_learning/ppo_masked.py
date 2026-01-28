@@ -1,6 +1,6 @@
 """
 PPO implementation with action mask according to the StableBaselines3 implementation.
-To reuse trained models, you can make use of the save and load function
+To reuse trained models-asptrain-small, you can make use of the save and load function
 """
 import numpy as np
 import random

@@ -31,7 +31,7 @@ def main() -> unittest.TestResult:
     runner = unittest.TextTestRunner(verbosity=3)
     result: unittest.TestResult = runner.run(suite)
 
-    # Return test results
+    # Return test gp
     return result
 
 

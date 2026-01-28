@@ -1,0 +1,49 @@
+{
+    "title": "TESTING schema GP",
+    "type": "object",
+    "properties": {
+         "sp_type": {
+            "type": "string"
+        },
+        "algorithm": {
+            "type": "string"
+        },
+        "instances_file": {
+            "type": "string"
+        },
+        "environment": {
+            "type": "string"
+        },
+        "saved_model_name": {
+            "type": "string"
+        },
+        "seed": {
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            }
+        },
+        "config_description": {
+            "type": "string"
+        },
+        "experiment_save_path": {
+            "type": "string"
+        },
+        "wandb_mode": {
+            "type": "integer"
+        },
+        "wandb_project": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "sp_type",
+        "algorithm",
+        "instances_file",
+        "environment",
+        "seed",
+        "config_description"
+    ]
+}

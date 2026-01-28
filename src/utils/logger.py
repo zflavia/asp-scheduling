@@ -1,6 +1,6 @@
 """
 This file provides the Logger class. The logger is called during the whole training and testing process,
-to track the current status or results.
+to track the current status or gp.
 
 Until now the logger only provides weights and biases (wandb) as logging method.
 You can add other logging methods and call them in the dump function to use existing logger infrastructure.
@@ -11,9 +11,9 @@ Constants:
 | LOG_MODE: int: Wandb log mode. Choose from [0: no wandb, 1: wandb_offline, 2: wandb_online]
 | WANDB_PROJECT: str: Name of your wandb project where you want to upload all wandb logs
 | WANDB_ENTITY: str: Name of your wandb entity where you want to upload all wandb logs
-| WANDB_TABLE_COLUMNS list[str]: The logger uploads tables with testing results. This list is used to specify the columns
+| WANDB_TABLE_COLUMNS list[str]: The logger uploads tables with testing gp. This list is used to specify the columns
   names. If you change the content of the table, you can adapt the column labels
-| WANDB_FINAL_EVALUATION_TABLE_COLUMNS List[str]: The logger uploads the final evaluation results in a separate table
+| WANDB_FINAL_EVALUATION_TABLE_COLUMNS List[str]: The logger uploads the final evaluation gp in a separate table
   with these columns.
 
 LOG_MODE and WANDB_PROJECT can also be set in training config.
@@ -160,9 +160,9 @@ class Logger:
         Add the recent gantt_chart and kwargs as row to the table in the record buffer.
         The table will be logged to wandb when calling dump
 
-        :param agent: Name of the agent whose results you want to log here
+        :param agent: Name of the agent whose gp you want to log here
         :param gantt_chart: Gantt chart image
-        :param kwargs: Additional results beside the gantt chart you want to log in the table (e.g. tardiness, makespan)
+        :param kwargs: Additional gp beside the gantt chart you want to log in the table (e.g. tardiness, makespan)
 
         :return: None
 
@@ -182,7 +182,7 @@ class Logger:
 
     def write_to_wandb_summary(self, evaluation_results: dict):
         """
-        Log results as summary to wandb
+        Log gp as summary to wandb
 
         :param evaluation_results: Dictionary with at least all evaluation result to be logged in this function
 
@@ -191,7 +191,7 @@ class Logger:
         """
         if self.wandb_run:
             final_evaluation_table = wandb.Table(columns=WANDB_FINAL_EVALUATION_TABLE_COLUMNS)
-            # iterate overall all agent whose results are saved in evaluation_results
+            # iterate overall all agent whose gp are saved in evaluation_results
             for agent in evaluation_results.keys():
                 log_data = []
                 log_data.append(str(agent))

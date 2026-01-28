@@ -16,7 +16,7 @@ from src.data_generator.task import Task
 
 # Constants
 DATA_DIRECTORY: Path = Path(__file__).parent.parent.parent.parent / 'data' / 'instances'
-SOLVER_DATA_DIRECTORY: Path = Path(__file__).parent.parent.parent.parent / 'data' / 'models' / 'solver_solution'
+SOLVER_DATA_DIRECTORY: Path = Path(__file__).parent.parent.parent.parent / 'data' / 'models-asptrain-small' / 'solver_solution'
 FILE_PATH_VARIABLES: List[str] = ['sp_type', 'num_jobs', 'num_tasks', 'num_tools']
 SOLVER_DATA_DICT: str = 'instance_dict.pkl'
 INSTANCES_FILE_CONFIG_KEY: str = 'instances_file'

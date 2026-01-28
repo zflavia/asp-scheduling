@@ -1,0 +1,25 @@
+##############################################################################
+###                               Testing                                  ###
+##############################################################################
+# (R) [str] Type of your scheduling problem - this template is for the asp
+sp_type: asp
+# (R)   [string]  GP algorithm you want to use
+algorithm: gp-aos
+# (R)   [string]  Test Environment: Should be the same the agent was trained on
+environment: env_gp
+# (O)   [string]  Name of the model you want to load for testing
+saved_model_name: gp_pair_5t_asptrain_optunaParam
+# (R)   [int]     Seed for all pseudo random generators (random, numpy, torch)
+seed: [0, 200]
+# (R)   [string]  Set an individual description that you can identify this
+# training run  more easily later on. This will be used in
+# "weights and biases" as well
+config_description: gp_pdr_asptrain_small
+# (O)   [string]  Set a directory from where you want to load the agent model
+experiment_save_path: gp/models/models-asptrain-large-gp5t/
+# (R)   [string]  Path to the file with generated data that to be used for test ds_variants_deep_test
+instances_file: asp/ds_ASP_2asp.pkl
+# (0) [string] Evaluate using only the best element (best), or using an assemble (assemble), or assemble-test
+evaluation_type: best
+# (0) [string] Save experiments gp path
+experiment_result_path: results/2asp/models-asptrain-large-gp5t/result_gp_pair_best

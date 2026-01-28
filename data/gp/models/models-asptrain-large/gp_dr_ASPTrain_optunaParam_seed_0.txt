@@ -1,0 +1,28 @@
+{
+  "best_ind": [
+    "(protected_if(lt((max(O_MeanPT, O_Flex)) - O_MinPT, O_Path_OpNo), protected_if(lt(O_WT, O_MinPT * (min(O_WT - O_Path_MinLen, O_MinPT))), O_MinPT + O_MinPT, protected_if(lt(O_WT, O_MinPT * (O_WT - O_Path_OpNo)), O_WT, O_Path_MinLen * O_WT)), min(O_WT - O_Path_OpNo, O_MinPT))) * O_Path_MinLen * O_WT",
+    "min(M_OP, -((max(M_CT_B, M_UT)) - 2.69 + E_PT - M_QL))"
+  ],
+  "hof": [
+    [
+      "(protected_if(lt((max(O_MeanPT, O_Flex)) - O_MinPT, O_Path_OpNo), protected_if(lt(O_WT, O_MinPT * (min(O_WT - O_Path_MinLen, O_MinPT))), O_MinPT + O_MinPT, protected_if(lt(O_WT, O_MinPT * (O_WT - O_Path_OpNo)), O_WT, O_Path_MinLen * O_WT)), min(O_WT - O_Path_OpNo, O_MinPT))) * O_Path_MinLen * O_WT",
+      "min(M_OP, -((max(M_CT_B, M_UT)) - 2.69 + E_PT - M_QL))"
+    ],
+    [
+      "(protected_if(lt((max(O_MeanPT, O_Flex)) - O_MinPT, O_Path_OpNo), protected_if(lt(O_WT, O_MinPT * (O_WT - O_Path_MinLen) * O_MinPT), O_MinPT + O_MinPT, protected_if(lt(O_WT, O_MinPT * (min(O_WT - O_Path_OpNo, O_MinPT))), O_WT, O_Path_MinLen * O_WT)), min(O_WT - O_Path_OpNo, O_MinPT))) * O_Path_MinLen * O_WT",
+      "min(M_UT, -((max(M_CT_B, M_QL * M_UT)) - 2.69 + E_PT - M_QL))"
+    ],
+    [
+      "(protected_if(lt((max(O_MeanPT, O_Flex)) - O_MinPT, O_Path_OpNo), protected_if(lt(O_WT, O_MinPT * (min(O_WT - O_Path_MinLen, O_MinPT))), O_MinPT + O_MinPT, protected_if(lt(O_WT, O_MinPT * (min(O_WT - O_Path_OpNo, O_MinPT))), O_WT, O_Path_MinLen * O_WT)), min(O_WT - O_Path_OpNo, O_MinPT))) * O_Path_MinLen * O_WT",
+      "min(M_OP, -((max(M_CT_B, M_QL * M_UT)) - 2.69 + E_PT - M_QL))"
+    ],
+    [
+      "(protected_if(lt((max(O_MeanPT, O_Flex)) - O_MinPT, O_Path_OpNo), protected_if(lt(O_WT, O_MinPT * (min(O_WT - O_Path_MinLen, O_MinPT))), O_MinPT + O_MinPT, protected_if(lt(O_WT, O_MinPT * (min(O_WT - O_Path_OpNo, O_MinPT))), O_WT, O_Path_MinLen * O_WT)), min(O_WT - O_Path_OpNo, O_MinPT))) * O_Path_MinLen * O_WT",
+      "min(M_UT, -((max(M_CT_B, min(M_QL, M_UT))) - 2.69 + E_PT - M_QL))"
+    ],
+    [
+      "(protected_if(lt((max(O_MeanPT, O_Flex)) - O_MinPT, O_Path_OpNo), protected_if(lt(O_WT, O_MeanPT * (min(O_WT - O_Path_MinLen, O_MinPT))), O_MinPT + O_MinPT, protected_if(lt(O_WT, O_MinPT * (min(O_WT - O_Path_OpNo, O_MinPT))), O_WT, O_Path_MinLen * O_WT)), min(O_WT - O_Path_OpNo, O_MinPT))) * O_Path_MinLen * O_WT",
+      "min(M_UT, -((max(M_CT_B, min(M_QL, M_UT))) - 2.69 + E_PT - M_QL))"
+    ]
+  ]
+}

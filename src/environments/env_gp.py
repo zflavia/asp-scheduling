@@ -118,10 +118,10 @@ class EnvGP():
         if individual_trees_no == 1:
             return self.get_next_action_pair(priority_func)
         elif individual_trees_no == 2:
-            return self.get_next_action_dispach_routing(priority_func)
+            return self.get_next_action_dispatch_routing(priority_func)
         return None
 
-    def get_next_action_dispach_routing(self, priority_func: Any):
+    def get_next_action_dispatch_routing(self, priority_func: Any):
         '''
         Selects the next pair to be scheduled
         :param priority_func: a GP priority rule or rules that selects a pair (op, machine)
@@ -323,6 +323,14 @@ class EnvGP():
                         # 5. M_QD
                         feat_machine_queue_duration = self.machine_queue_op_duration[m_idx]
 
+                        # M_CT_A
+                        feat_machine_compleation_time_append = max(operation.release_time,
+                                                                   self.machine_ready_time[m_idx]) + processing_time
+                        # M_CT_B
+                        index, start_time, end_time = backward_planning_completion_time(operation,
+                                                                                        m_idx,
+                                                                                        self.machines)
+                        feat_machine_compleation_time_backward = end_time
                         # print("priority_func", priority_func)
                         # print(feat_op_mean_time, feat_op_min_time, feat_op_flexibility_factor,
                         #                       feat_machine_ready_time, feat_machine_operation_proportion,
@@ -334,24 +342,42 @@ class EnvGP():
                         if self.evaluation_type == 'assemble':
                             for pf in priority_func:
                                 _pf = pf[0]
-                                a = _pf(feat_op_mean_time, feat_op_min_time, feat_op_flexibility_factor,
-                                                  feat_machine_ready_time, feat_machine_operation_proportion,
-                                                  feat_machine_utilization_percentage,
-                                                  feat_edge_processing_time, feat_edge_PT_maxPT,
-                                                  feat_edge_PT_maxMachinePT,
-                                                  feat_op_path_opNO, feat_op_path_minLen, feat_op_ready,
-                                                  feat_machine_queue_lenght,feat_machine_queue_duration)
+                                # a = _pf(feat_op_mean_time, feat_op_min_time, feat_op_flexibility_factor,
+                                #           feat_machine_ready_time, feat_machine_operation_proportion,
+                                #           feat_machine_utilization_percentage,
+                                #           feat_edge_processing_time, feat_edge_PT_maxPT,
+                                #            feat_edge_PT_maxMachinePT,
+                                #            feat_op_path_opNO, feat_op_path_minLen, feat_op_ready,
+                                #            feat_machine_queue_lenght,feat_machine_queue_duration,
+                                #            feat_machine_compleation_time_append,
+                                #            feat_machine_compleation_time_backward
+                                #        )
+                                a = _pf(
+                                          feat_edge_processing_time, feat_edge_PT_maxPT,
+                                          feat_edge_PT_maxMachinePT,
+                                           feat_machine_compleation_time_append,
+                                           feat_machine_compleation_time_backward
+                                       )
                                 l.append(a)
                                 score+=a
                             score /= len(priority_func)
                         elif self.evaluation_type == 'best' or self.evaluation_type == 'assemble-test':
                             _pf = priority_func[0]
-                            score = _pf(feat_op_mean_time, feat_op_min_time, feat_op_flexibility_factor,
-                                          feat_machine_ready_time, feat_machine_operation_proportion,
-                                          feat_machine_utilization_percentage,
-                                          feat_edge_processing_time, feat_edge_PT_maxPT, feat_edge_PT_maxMachinePT,
-                                          feat_op_path_opNO, feat_op_path_minLen, feat_op_ready,
-                                          feat_machine_queue_lenght,feat_machine_queue_duration)
+                            # score = _pf(feat_op_mean_time, feat_op_min_time, feat_op_flexibility_factor,
+                            #             feat_machine_ready_time, feat_machine_operation_proportion,
+                            #             feat_machine_utilization_percentage,
+                            #             feat_edge_processing_time, feat_edge_PT_maxPT, feat_edge_PT_maxMachinePT,
+                            #             feat_op_path_opNO, feat_op_path_minLen, feat_op_ready,
+                            #             feat_machine_queue_lenght,feat_machine_queue_duration,
+                            #             feat_machine_compleation_time_append,
+                            #             feat_machine_compleation_time_backward
+                            #             )
+                            score = _pf(feat_edge_processing_time,
+                                        feat_edge_PT_maxPT,
+                                        feat_edge_PT_maxMachinePT,
+                                         feat_machine_compleation_time_append,
+                                         feat_machine_compleation_time_backward
+                                          )
                         #print(score,l)
                         ready_pairs.append((score, op_idx, m_idx))
         # select pair

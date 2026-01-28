@@ -19,39 +19,52 @@ class GP_AOS(GPBase):
         Set terminals for GP individual
         :return: pset
         """
-        pset = gp.PrimitiveSetTyped("GP_pair", [float]*14, float)  # 9
+        #pset = gp.PrimitiveSetTyped("GP_pair", [float]*16, float)  # 9
+        pset = gp.PrimitiveSetTyped("GP_pair", [float] * 5, float)  # 9
+
+        pset.renameArguments(ARG0='E_PT')
+        pset.renameArguments(ARG1='E_PT_maxPT')
+        pset.renameArguments(ARG2='E_PT_maxMPT')
+        pset.renameArguments(ARG3="M_CT_A")
+        pset.renameArguments(ARG4="M_CT_B")
+
+
         # Score function arguments:
-        #1. Operation: Mean processing time: Estimates operation duration.
-        pset.renameArguments(ARG0='O_MeanPT')
-        #2. Operation: Minimum processing time: Highlights the quickest possible execution time
-        pset.renameArguments(ARG1='O_MinPT')
-        #3. Operation:  Ratio of machines that are eligible for Oij to total machine number
-        pset.renameArguments(ARG2='O_Flex')
+        # #1. Operation: Mean processing time: Estimates operation duration.
+        # pset.renameArguments(ARG0='O_MeanPT')
+        # #2. Operation: Minimum processing time: Highlights the quickest possible execution time
+        # pset.renameArguments(ARG1='O_MinPT')
+        # #3. Operation:  Ratio of machines that are eligible for Oij to total machine number
+        # pset.renameArguments(ARG2='O_Flex')
         #4. Edge (op, machine): Processing time p_{ik}  of operation i on machine k
-        pset.renameArguments(ARG3='E_PT')
-        #5. Edge (op, machine): Ratio of p_{ik} to the maximum processing time of p_{il}  l=1,M_i  (M_i= total number
-        # of machines on which op i can be executed)
-        pset.renameArguments(ARG4='E_PT_maxPT')
-        #6. Edge (op, machine): Ratio of p_{ik} to the maximum processing time of p_{lk}  l=1,N _k (N_k= total number
-        # of operations that can be executed on machine k)
-        pset.renameArguments(ARG5='E_PT_maxMPT')
-        #7. Machine: Last operation completion time t_{last}: Determines machine availability.
-        pset.renameArguments(ARG6='M_RT')
-        #8. Machine: Number of operations (unscheduled)  that can be executed on M / total number of operations (unscheduled)
-        pset.renameArguments(ARG7='M_OP')
-        #9. Machine: Utilization percentage: T_{used}/t_{last}: Indicates machine efficiency.
-        pset.renameArguments(ARG8='M_UT')
-        #10. Operation: number of operations from the current operation to root operation
-        pset.renameArguments(ARG9="O_Path_OpNo")
-        #11. Operation:  lenght of the execution path from the current operation to root operation (computed using min
-        # execution time from all machine alternatives)
-        pset.renameArguments(ARG10="O_Path_MinLen")
-        #12. Operation: current makespan - operation.release_time
-        pset.renameArguments(ARG11="O_WT")
-        #13. Machine: queue length (op. no in queue)
-        pset.renameArguments(ARG12="M_QL")
-        #14. Machine: queue duration (op. duration in queue)
-        pset.renameArguments(ARG13="M_QD")
+        # pset.renameArguments(ARG3='E_PT')
+        # #5. Edge (op, machine): Ratio of p_{ik} to the maximum processing time of p_{il}  l=1,M_i  (M_i= total number
+        # # of machines on which op i can be executed)
+        # pset.renameArguments(ARG4='E_PT_maxPT')
+        # #6. Edge (op, machine): Ratio of p_{ik} to the maximum processing time of p_{lk}  l=1,N _k (N_k= total number
+        # # of operations that can be executed on machine k)
+        # pset.renameArguments(ARG5='E_PT_maxMPT')
+        # #7. Machine: Last operation completion time t_{last}: Determines machine availability.
+        # pset.renameArguments(ARG6='M_RT')
+        # #8. Machine: Number of operations (unscheduled)  that can be executed on M / total number of operations (unscheduled)
+        # pset.renameArguments(ARG7='M_OP')
+        # #9. Machine: Utilization percentage: T_{used}/t_{last}: Indicates machine efficiency.
+        # pset.renameArguments(ARG8='M_UT')
+        # #10. Operation: number of operations from the current operation to root operation
+        # pset.renameArguments(ARG9="O_Path_OpNo")
+        # #11. Operation:  lenght of the execution path from the current operation to root operation (computed using min
+        # # execution time from all machine alternatives)
+        # pset.renameArguments(ARG10="O_Path_MinLen")
+        # #12. Operation: current makespan - operation.release_time
+        # pset.renameArguments(ARG11="O_WT")
+        # #13. Machine: queue length (op. no in queue)
+        # pset.renameArguments(ARG12="M_QL")
+        # #14. Machine: queue duration (op. duration in queue)
+        # pset.renameArguments(ARG13="M_QD")
+        #15. Machine: CT_append
+        # pset.renameArguments(ARG6="M_CT_A")
+        # #16. Machine: CT_backward
+        # pset.renameArguments(ARG7="M_CT_B")
 
         cls.configure_non_terminals_and_common_primitive(pset)
         return pset

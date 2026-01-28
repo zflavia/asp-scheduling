@@ -40,4 +40,6 @@ python3 -m src.agents.train -fp training/gp/trainn.gp-aos.yaml
  python3 -m src.agents.train -fp training/gp/config_gp_dr_train_ga.yaml 
 
 
+ python3 -m src.agents.test -fp testing/gp/config_gp_dr_train_ga_best.yaml
+
 

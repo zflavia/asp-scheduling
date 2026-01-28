@@ -1,0 +1,20 @@
+{
+  "best_ind": [
+    "(min(O_MeanPT, O_Flex + (max(O_Path_MinLen, max(O_Flex, min(O_MeanPT, max(O_Flex, O_Path_MinLen))))))) * O_Path_MinLen",
+    "(protected_if(lt(max(M_CT_B, -1.61), M_QL / M_CT_B), -1.61 / -M_CT_B, -M_CT_A - (max(max(M_CT_B, M_CT_A), -1.61)))) + -M_CT_A - (max(max(M_CT_B, -1.61), -1.61)) - M_CT_B"
+  ],
+  "hof": [
+    [
+      "(min(O_MeanPT, O_Flex + (max(O_Path_MinLen, max(O_Flex, min(O_MeanPT, max(O_Flex, O_Path_MinLen))))))) * O_Path_MinLen",
+      "(protected_if(lt(max(M_CT_B, -1.61), M_QL / M_CT_B), -1.61 / -M_CT_B, -M_CT_A - (max(max(M_CT_B, M_CT_A), -1.61)))) + -M_CT_A - (max(max(M_CT_B, -1.61), -1.61)) - M_CT_B"
+    ],
+    [
+      "(min(O_MeanPT, O_Flex + (max(O_Path_MinLen, max(O_Path_MinLen, O_Path_MinLen))))) * O_Path_MinLen",
+      "(protected_if(lt(max(max(M_CT_B, M_CT_A), -1.61), M_QL / M_CT_B), -1.61 / -M_CT_B, -M_CT_A - (max(max(M_CT_B, M_CT_A), -1.61)))) + -M_CT_A - (max(max(M_CT_B, -1.61), -1.61)) - M_CT_B"
+    ],
+    [
+      "(min(O_MeanPT, O_Flex + (max(O_Path_MinLen, O_Path_MinLen)))) * O_Path_MinLen",
+      "(protected_if(lt(M_CT_B, M_QL / M_CT_B), -1.61 / -M_CT_B, -M_CT_A - (max(max(M_CT_B, M_CT_A), -1.61)))) + -M_CT_A - (max(max(M_CT_B, -1.61), -1.61)) - M_CT_B"
+    ]
+  ]
+}

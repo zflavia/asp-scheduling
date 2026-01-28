@@ -20,8 +20,9 @@ class EvaluationHandler:
         self.makespan = []  # number of steps required to end all jobs
         self.actions_list = []
         self.tasks_list = []
+        self.time =[]
 
-    def record_environment_episode(self, env, total_reward, use_letsa=False) -> None:
+    def record_environment_episode(self, env, total_reward, running_time = 0, use_letsa=False) -> None:
         """
         Stores all necessary environment parameters from the recent episode
 
@@ -38,6 +39,7 @@ class EvaluationHandler:
         self.tardiness_max.append(max(env.tardiness))
         self.tasks_list.append(env.tasks)
         self.actions_list.append(env.action_history)
+        self.time.append(running_time)
 
     def update_episode_solved_with_solver(self, env) -> None:
         """
@@ -81,6 +83,7 @@ class EvaluationHandler:
         evaluation_results['rew_cvar'] = rewards[rewards <= evaluation_results['rew_worst_quantile_border']].mean()
         evaluation_results['rew_perc_good_solutions'] = 1 - np.count_nonzero(rewards)/len(rewards)
         evaluation_results['num_tests'] = len(rewards)
+        evaluation_results['running_time'] = self.time
 
         return evaluation_results
 
@@ -89,9 +92,9 @@ class EvaluationHandler:
         """
         If solver makespan exists, compute optimal gap for all agents
 
-        :param results: Dictionary with test results
+        :param results: Dictionary with test gp
 
-        :return: Updated dictionary with test results now including optimal gap
+        :return: Updated dictionary with test gp now including optimal gap
 
         """
         if 'solver' in results:

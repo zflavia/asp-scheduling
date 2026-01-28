@@ -1,0 +1,10 @@
+{
+  "best_ind": "E_PT_maxMPT / ((max(E_PT - (max(2.34 / E_PT_maxPT, E_PT)) / M_CT_B, -E_PT * -M_CT_A - M_CT_B * M_CT_B)) + M_CT_B + (max(E_PT_maxMPT * (M_CT_B + 2.34 / E_PT_maxMPT), E_PT)) + M_CT_B + 2.34 / E_PT_maxPT)",
+  "hof": [
+    "E_PT_maxMPT / ((max(E_PT - (max(2.34 / E_PT_maxPT, E_PT)) / M_CT_B, -E_PT * -M_CT_A - M_CT_B * M_CT_B)) + M_CT_B + (max(E_PT_maxMPT * (M_CT_B + 2.34 / E_PT_maxMPT), E_PT)) + M_CT_B + 2.34 / E_PT_maxPT)",
+    "(protected_if(lt(E_PT, E_PT_maxMPT), M_CT_B, max(-0.17, E_PT_maxMPT))) / ((max(-(M_CT_A + (max(min(M_CT_B, -4.46), E_PT_maxMPT))) / (max(E_PT_maxPT, M_CT_A)), max(E_PT - (2.34 / E_PT_maxMPT + M_CT_B) / M_CT_A, M_CT_A - M_CT_B - (max(M_CT_B / E_PT_maxPT + E_PT, M_CT_B))))) + M_CT_B + (max(E_PT_maxMPT * (M_CT_B + 2.34 / E_PT_maxMPT), E_PT)) + M_CT_B + 2.34 / E_PT_maxPT)",
+    "E_PT_maxMPT / ((max(2.34 / M_CT_B, max(E_PT - (2.34 / E_PT_maxMPT + 1.98 + M_CT_B) / (max(M_CT_A, -2.46)), M_CT_B / M_CT_A - (max(E_PT_maxMPT, M_CT_A))))) + M_CT_B + (max(E_PT_maxMPT * (M_CT_B + 2.34 / E_PT_maxMPT), E_PT)) + M_CT_B + 2.34 / E_PT_maxPT)",
+    "E_PT_maxMPT / ((max(2.34 / M_CT_B, max(E_PT - (2.34 / E_PT_maxMPT + 1.98 + M_CT_B) / (max(M_CT_A, -2.46)), M_CT_B / M_CT_A - E_PT_maxPT * M_CT_B))) + M_CT_B + (max(E_PT_maxMPT * (M_CT_B + 2.34 / E_PT_maxMPT), E_PT)) + M_CT_B + 2.34 / E_PT_maxPT)",
+    "E_PT_maxMPT / ((max(2.34 / M_CT_B, max(E_PT - (2.34 / E_PT_maxMPT + 1.98 + M_CT_B) / (max(M_CT_A, -2.46)), M_CT_B / M_CT_A - 2.34 / E_PT_maxPT))) + M_CT_B + (max(E_PT_maxMPT * (M_CT_B + 2.34 / E_PT_maxMPT), E_PT)) + M_CT_B + 2.34 / E_PT_maxPT)"
+  ]
+}

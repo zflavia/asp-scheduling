@@ -18,7 +18,7 @@ def generate_and_process_binary_masks(results_dir, train_config_file_path, test_
     null_mask = '0000000000'
 
     counter = 0
-    run_heuristics = 1 # should run the heuristics and print their results only once if =1
+    run_heuristics = 1 # should run the heuristics and print their gp only once if =1
     for mask_tuple in product([0, 1], repeat=10):
         mask = ''.join(map(str, mask_tuple))
         if mask != null_mask:
@@ -44,7 +44,7 @@ def validate_bounds(lower_bound, upper_bound):
 def main():
     parser = argparse.ArgumentParser(description='Generate and process binary masks for training and testing')
 
-    parser.add_argument('--results_dir', type=str, default='results/all/', help='Directory to store results')
+    parser.add_argument('--results_dir', type=str, default='gp/all/', help='Directory to store gp')
     parser.add_argument('-trainfp', '--train_config_file_path', default='training/ppo/config_ASP_TUBES.yaml', required=True,
                         help='Path to config file you want to use for training')
     parser.add_argument('-testfp', '--test_config_file_path', default='testing/ppo/config_ASP_TUBES_TESTING.yaml', required=True,

@@ -1,0 +1,28 @@
+{
+  "best_ind": [
+    "max(max((max(O_Path_OpNo + O_MeanPT / O_Path_OpNo + O_Path_OpNo, (max(O_MeanPT / O_MinPT, O_Path_MinLen)) + O_Path_OpNo)) + O_Path_MinLen + (max((max(O_MeanPT / O_Path_OpNo, max(O_Path_OpNo, O_Path_MinLen))) + O_Path_OpNo, O_MeanPT / O_Path_OpNo + O_Path_OpNo)), O_Path_OpNo * O_WT / -2.94), O_MeanPT / O_Path_OpNo + O_Path_OpNo + O_Path_OpNo + O_Path_OpNo)",
+    "-((M_QL + (max(1.67, M_QL + E_PT))) * M_UT + M_CT_B + E_PT * M_UT + M_CT_B + E_PT + E_PT + E_PT)"
+  ],
+  "hof": [
+    [
+      "max(max((max(O_Path_OpNo + O_MeanPT / O_Path_OpNo + O_Path_OpNo, (max(O_MeanPT / O_MinPT, O_Path_MinLen)) + O_Path_OpNo)) + O_Path_MinLen + (max((max(O_MeanPT / O_Path_OpNo, max(O_Path_OpNo, O_Path_MinLen))) + O_Path_OpNo, O_MeanPT / O_Path_OpNo + O_Path_OpNo)), O_Path_OpNo * O_WT / -2.94), O_MeanPT / O_Path_OpNo + O_Path_OpNo + O_Path_OpNo + O_Path_OpNo)",
+      "-((M_QL + (max(1.67, M_QL + E_PT))) * M_UT + M_CT_B + E_PT * M_UT + M_CT_B + E_PT + E_PT + E_PT)"
+    ],
+    [
+      "max(max((max(O_MeanPT / O_Path_OpNo / O_Path_OpNo, O_Path_MinLen)) + O_MeanPT / O_Path_OpNo, O_Path_OpNo * O_WT / -2.94), O_Path_MinLen + (max(max(O_Path_OpNo, O_Path_MinLen), max(O_MeanPT / O_Path_OpNo / O_MinPT, O_Path_OpNo))) + O_Path_OpNo)",
+      "-(M_CT_B + E_PT * M_UT + M_CT_B + E_PT + E_PT + E_PT)"
+    ],
+    [
+      "max(max((max(O_Path_OpNo + O_Path_OpNo + O_Path_OpNo, max(O_MeanPT / O_Path_OpNo / O_Path_OpNo, O_Path_MinLen))) + O_MeanPT / O_Path_OpNo, O_Path_OpNo * O_WT / -2.94), O_Path_MinLen + (max(max(O_Path_OpNo, O_Path_MinLen), max(O_MeanPT / O_Path_OpNo / O_MinPT, O_Path_OpNo))) + O_Path_OpNo)",
+      "-(M_CT_B + E_PT * M_UT + M_CT_B + E_PT + E_PT + E_PT)"
+    ],
+    [
+      "max(max((max(O_MeanPT / O_Path_OpNo + O_Path_OpNo + O_Path_OpNo, max(O_Path_OpNo, O_Path_MinLen))) + O_Path_MinLen, O_Path_OpNo * O_WT / -2.94), O_Path_MinLen + (max(O_MeanPT / O_Path_OpNo, O_Path_OpNo / O_Path_OpNo + O_Path_OpNo)) + O_Path_OpNo)",
+      "-((max(0.15, M_QL + E_PT)) * M_UT + M_CT_B + E_PT + E_PT + E_PT)"
+    ],
+    [
+      "max(max((max(O_MeanPT / O_Path_OpNo + O_Path_OpNo + O_Path_OpNo, max(O_Path_OpNo, O_Path_MinLen))) + O_Path_MinLen, O_Path_OpNo * O_WT / -2.94), (max(O_Path_OpNo - O_Path_MinLen, O_Path_MinLen)) + O_Path_OpNo)",
+      "-(E_PT * M_UT + M_CT_B + E_PT + E_PT + E_PT)"
+    ]
+  ]
+}
