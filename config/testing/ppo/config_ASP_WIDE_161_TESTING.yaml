@@ -28,7 +28,7 @@ seed: 2
 # "weights and biases" as well
 config_description: tasks_ASP_WIDE_161
 # (O)   [string]  Set a directory from where you want to load the agent model
-experiment_save_path: models
+experiment_save_path: models-asptrain-small
 # (O)   [int]:    wandb mode choose: choose from [0: no wandb, 1: wandb_offline, 2: wandb_online]
 wandb_mode: 0
 # (O)   [string]  Set a wandb project where you want to upload all wandb logs

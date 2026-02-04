@@ -8,15 +8,16 @@ import numpy as np
 from deap import base, creator, tools, gp
 import operator
 import copy
-from typing import List, Tuple
+from typing import Tuple, AnyStr, Literal, List, Union
+from enum import Enum
 
 from src.utils.file_handler.model_handler import ModelHandler
 from src.utils.logger import Logger
-from src.agents.gp.simpleTree import tree_str, infix_str, simplify_individual
+from src.agents.gp.simpleTree import infix_str
 from src.agents.gp.util import protected_div, protected_if, generate_random_value_for_erc, lt
 
 class OperatorSpec:
-    def __init__(self, name, optype, func):
+    def __init__(self, name : AnyStr, optype : Literal['mutation', 'crossover'], func):
         """
         name   : string for debug/log
         optype : "mutation" or "crossover"
@@ -33,12 +34,11 @@ class OperatorSpec:
         - mutation: receives 1 individual and returns  (new_ind, None)
         - crossover: receives 2 individuals and returns (child1, child2)
         """
-        #print("op name:", self.name, self.func)
-        if self.type == "mutation":
+        if self.type == 'mutation':
             (new_ind,) = self.func(ind1)
             return new_ind, None
 
-        elif self.type == "crossover":
+        elif self.type == 'crossover':
             if ind2 is None:
                 raise ValueError(f"{self.name}: crossover needs 2 inds")
             child1, child2 = self.func(ind1, ind2)
@@ -52,6 +52,22 @@ class OperatorSpec:
 class GPBase:
     """GP Agent class"""
 
+    class AOSType(str, Enum):
+        """
+        Adaptive operator selection types
+        """
+        AOS = "aos"
+        AOS_MEMORY = "aos-memory"
+        RANDOM = "random"
+
+    class RuleEvaluationType(str, Enum):
+        """
+        Adaptive operator selection types
+        """
+        BEST = "best"
+        ASSEMBLE = "assemble"
+        ASSEMBLE_INSTANCES = "assemble-instances"
+
     def __init__(self, env, config: dict, logger: Logger = None, metadata=None):
         """
         """
@@ -59,31 +75,31 @@ class GPBase:
         self.env = env
 
         # set random seed
-        if self.env.seed is not None:
-            random.seed(self.env.seed)
+        if self.env.seed is not None: random.seed(self.env.seed)
 
-        if config.get('aos_type', 'aos'):
-            self.use_aos = True
-            self.use_qlearning = False
-        else:
-            self.use_aos = False
-            self.use_qlearning = True
+        self.aos_type : GPBase.AOSType =  GPBase.AOSType(config.get('gp_aos_type', 'random'))
 
         self.pop_size: int = config.get('gp_population_size', 10)
         self.halloffame_size: int = config.get('gp_halloffame_size', 1)
         self.variation_probability: float = config.get('gp_population_variation', 0.95)
-        #self.mutpb: float = config.get('mutation_probability', 0.3)
         self.ngen: int = config.get('gp_generations_number', 10)
-        self.max_expression_depth = config.get('gp_tree_max_depth', 7)
-        self.gp_tree_initial_max_depth = config.get('gp_tree_initial_max_depth', 3)
-        self.simplify_frequency = config.get('gp_simplify_frequency', 10)
-        self.tournament_size = config.get('gp_tournament_size', 3)
-        self.np = config.get('no_parallel_processes', 1)
+        self.max_expression_depth: int = config.get('gp_tree_max_depth', 7)
+        self.gp_tree_initial_max_depth: int = config.get('gp_tree_initial_max_depth', 3)
+        self.simplify_frequency: int = config.get('gp_simplify_frequency', 10)
+        self.tournament_size: int = config.get('gp_tournament_size', 3)
+        self.np: int = config.get('no_parallel_processes', 1)
         self.env_config = config #for saving the solution in file
 
-    def multi_instance_fitness(self, individual,#: gp.PrimitiveTree or list,
-                           toolbox: base.Toolbox,
-                           ) -> Tuple[float,]:
+    def multi_instance_fitness(self, individual: Union[gp.PrimitiveTree,
+                        List [gp.PrimitiveTree]],
+                        toolbox: base.Toolbox,
+                        ) -> Tuple[float,]:
+        """
+        Evaluate an individual
+        :param individual: an individual from the population (depending on the GP type 1Tree or 2Tress)
+        :param toolbox: DEAP toolbox
+        :return: the fitness value (mean makespan on all train instances)
+        """
         if individual is None:
             return (float('inf'),)
         try:
@@ -94,7 +110,6 @@ class GPBase:
                 # individual contains 2 trees
                 priority_func = [toolbox.compile_disp(expr=individual[0]), toolbox.compile_route(expr=individual[1])]
         except Exception as e:
-            import traceback
             traceback.print_exc()
             return (float('inf'),)
 
@@ -103,27 +118,22 @@ class GPBase:
         self.env.current_instance_index = -1
 
         for inst_no in range(self.env.instances_no):
+            makespan = float('inf')
             try:
                 makespan = self.env.evaluate_instance(priority_func, self.individual_trees_no)
             except Exception as e_eval:
-                print("EROARE EVAL: ", e_eval)
-                import traceback
                 traceback.print_exc()
-                makespan = float('inf')
 
             if makespan != float('inf'):
                 total_combined_score += makespan
                 num_valid_instances_evaluated += 1
             else:
-                import traceback
                 traceback.print_exc()
+
         if num_valid_instances_evaluated == 0:
-            import traceback
-            traceback.print_exc()
-            print("Infinit!!!!!!!!!!!!")
+            print("Infinity!!!!!!!!!!!!")
             return (float('inf'),)
 
-        #print(" makespan mediu individ", total_combined_score / num_valid_instances_evaluated)
         return (total_combined_score / num_valid_instances_evaluated,)
 
     def configure_terminals(self):
@@ -134,11 +144,11 @@ class GPBase:
         pass
 
     @classmethod
-    def configure_non_terminals_and_common_primitive(cls, pset: gp.PrimitiveSetTyped):
+    def configure_non_terminals_and_common_primitive(cls, pset: gp.PrimitiveSetTyped) -> gp.PrimitiveSetTyped:
         """
        Set non-terminals for GP individual and common primitives (constants, ERC)
        :param pset: - GP primitive set
-       :return: pset
+       :return: pset: - GP primitive set
        """
 
         # Non-terminals
@@ -161,16 +171,14 @@ class GPBase:
 
 
     def config_statistics(self):
-        # redefinire functii din statistici deoarece pot contine valori inf - de vazut daca si acum mai e cazul
+        # redefine statistic functions
         safe_avg = lambda x: sum(xi for xi in x if xi != float('inf')) / len(
             [xi for xi in x if xi != float('inf')]) if len(
             [xi for xi in x if xi != float('inf')]) > 0 else 0.0
         safe_min = lambda x: min(xi for xi in x if xi != float('inf')) if any(
-            xi != float('inf') for xi in x) else float(
-            'inf')
+            xi != float('inf') for xi in x) else float('inf')
         safe_max = lambda x: max(xi for xi in x if xi != float('inf')) if any(
-            xi != float('inf') for xi in x) else float(
-            '-inf')
+            xi != float('inf') for xi in x) else float('-inf')
 
         def safe_std(x_list):
             finite_vals = [xi for xi in x_list if xi != float('inf')]
@@ -184,18 +192,16 @@ class GPBase:
         stats_fit.register("min", safe_min)
         stats_fit.register("max", safe_max)
 
-        stats_size = tools.Statistics(len)
-        stats_size.register("avg", lambda x: sum(x) / len(x) if len(x) > 0 else 0.0)
-        stats_size.register("std", safe_std)
-        stats_size.register("min", safe_min)
-        stats_size.register("max", safe_max)
-
-        # `min` va alege individul bazat pe `ind.fitness`
         stats_best_ind_obj = self.register_individual_statistic(tools)
         return tools.MultiStatistics(fitness=stats_fit,
-                                       xbest_ind=stats_best_ind_obj
-                                       )
+                                     xbest_ind=stats_best_ind_obj)
+
     def register_individual_statistic(self, tools):
+        """
+        Register statistic regarding the best generation individual
+        :param tools: DEAP tools
+        :return: the DEAP statistic
+        """
         pass
 
     def learn(self, total_instances: int, total_timesteps: int, intermediate_test=None) -> None:
@@ -203,8 +209,8 @@ class GPBase:
         Learn over n environment instances or n timesteps. Break depending on which condition is met first
         One learning iteration consists of collecting rollouts and training the networks
 
-        :param total_instances: Instance limit
-        :param total_timesteps: - not used, kept for compatibility with the framework
+        :param total_instances:   - not used, kept for compatibility with the framework
+        :param total_timesteps:   - not used, kept for compatibility with the framework
         :param intermediate_test: - not used, kept for compatibility with the framework
 
         """
@@ -213,41 +219,43 @@ class GPBase:
 
         # Create the logbook
         logbook = tools.Logbook()
-        logbook.header = ["gen", "nevals"] + mstats.fields  # IMPORTANT!
 
         #call GP variant
         final_pop, logbook = self.runGP(toolbox, mstats)
 
-        # logbook = mstats.compile(final_pop)
-        print("----logbook-----\n")
 
+        print("----logbook-----\n")
         print("\n--- Best Individual per Generation (from Logbook) ---")
         if logbook:
             print(f"Gen\t{'MinFitness':<15}\tBest Individual Tree of Generation")
             print("-" * 80)
-            for gen_data in logbook:
-                gen_num = gen_data["gen"]
 
-                min_fitness_val = gen_data.get("fitness", {}).get("min", float('inf'))
-                best_ind_tree_of_gen = None
-                if "best_individual" in gen_data and "best" in gen_data["best_individual"]:
-                    best_ind_tree_of_gen = gen_data["best_individual"]["best"]
-                print(
-                    f"{gen_num}\t{min_fitness_val:<15.4f}\t{str(best_ind_tree_of_gen) if best_ind_tree_of_gen else 'N/A'}")
+            fit_ch = logbook.chapters["fitness"]
+            best_ch = logbook.chapters["xbest_ind"]
+
+            for i, root in enumerate(logbook):
+                gen = root["gen"]
+                #nevals = root["nevals"]
+
+                f = fit_ch[i]
+                b = best_ch[i]
+
+                if 'operation_selection_rule' in b.keys():
+                    print(f"{gen}\t{f['min']:<15.4f}\t{str(b['operation_selection_rule'])}  {str(b['machine_selection_rule'])}")
+                else:
+                    print(f"{gen}\t{f['min']:<15.4f}\t{str(b['best_tree'])}")
         else:
             print("Logbook is empty or not generated.")
 
         print("\nGenetic program finished.")
 
         self.best_ind = self.hof[0]
-        for el in self.hof:
-            print("hof", el)
-        self.display_best_individul(self.best_ind, toolbox)
+        self.display_hof(self.hof, toolbox)
 
         self.save(ModelHandler.get_best_model_path(self.env_config))
         return self.best_ind.fitness.values[0]
 
-    def display_best_individul(self, best_ind, toolbox):
+    def display_hof(self, hof, toolbox):
         pass
 
     def runGP(self, toolbox, mstats):
@@ -256,21 +264,28 @@ class GPBase:
 
 
     def operator_selection_strategy_configuration(self):
+        """
+        Prepare data stuctures to store operator selection information
+        :return:
+        """
         self.N_OPS = len(self.OP_SPECS)
 
-        if self.use_aos:
-            self.op_probs = np.ones(self.N_OPS) / self.N_OPS  # probabilități inițiale uniforme
-            self.op_rewards = np.zeros(self.N_OPS)  # reward acumulat
-            self.op_counts = np.zeros(self.N_OPS) + 1e-9  # câte ori a fost folosit fiecare operator (evităm /0)
-            self.ALPHA_PM = 0.8  # “learning rate” pentru Probability Matching
+        if self.aos_type is self.AOSType.AOS: #self.use_aos:
+            self.op_probs = np.ones(self.N_OPS) / self.N_OPS  # initial probabilities - uniform distributed
+            self.op_rewards = np.zeros(self.N_OPS)  # accumulated reward
+            self.op_counts = np.zeros(self.N_OPS) + 1e-9  # how many times each operator was used (avoid /0)
+            self.ALPHA_PM = 0.8  # “learning rate” for Probability Matching
 
-        if self.use_qlearning:
-            # Q-learning pe operatori
-            self.Q_ops = np.zeros(self.N_OPS)  # Q-value pentru fiecare operator
-            self.ALPHA_Q = 0.2  # learning rate (poți ajusta)
-            self.EPSILON_Q = 0.1  # explorare (10% random)
+        elif self.aos_type is self.AOSType.AOS_MEMORY: #self.use_qlearning:
+            self.Q_ops = np.zeros(self.N_OPS)  # Q-value for each operator
+            self.ALPHA_Q = 0.2  # learning rate (can be ajusted)
+            self.EPSILON_Q = 0.1  # exploration (10% random)
 
     def update_operator_probs(self):
+        """
+        update information for AOSType.AOS
+        :return:
+        """
         avg_rewards = self.op_rewards / self.op_counts
         if np.all(avg_rewards == 0):
             self.op_probs = np.ones(self.N_OPS) / self.N_OPS
@@ -279,17 +294,15 @@ class GPBase:
             uniform = np.ones(self.N_OPS) / self.N_OPS
             self.op_probs = (1 - self.ALPHA_PM) * uniform + self.ALPHA_PM * target_probs
 
-        print("op_rewards", self.op_rewards)
-        print("op_counts", self.op_counts)
-        print("self.op_probs", self.op_probs)
+        # print(f"op_rewards: {self.op_rewards}")
+        # print(f"op_counts:  {self.op_counts}")
+        # print(f"op_probs:   {self.op_probs}")
         self.op_rewards[:] = 0.0
         self.op_counts[:] = 1e-9
 
     def config_gp(self):
-
-        import inspect
-        print("GPBase defined in:", inspect.getfile(GPBase))
-        print("self class defined in:", inspect.getfile(self.__class__))
+        # import inspect
+        # print(f"GPBase defined in: {inspect.getfile(GPBase)}, self class {inspect.getfile(self.__class__)}" )
 
         #minimization uni-objective function
         if not hasattr(creator, "FitnessMin"):
@@ -309,7 +322,6 @@ class GPBase:
 
         self.OP_SPECS = self.config_gp_variation_operators(toolbox)
 
-
         self.operator_selection_strategy_configuration()
 
         # GP parameters
@@ -321,17 +333,16 @@ class GPBase:
         return toolbox
 
     def config_gp_variation_operators(self, toolbox):
+        # implemented in subclasses
         pass
 
     def config_individual(self, toolbox):
-        print("in base class")
         # implemented in subclasses
         pass
 
     def eaSimpleGP(self, population, toolbox, varpb, ngen, stats=None, halloffame=None, verbose=__debug__):
 
         logbook = tools.Logbook()
-        logbook.header = ['gen', 'nevals'] + (stats.fields if stats else [])
 
         # evaluate initial population
         invalid_ind = [ind for ind in population if not ind.fitness.valid]
@@ -344,13 +355,10 @@ class GPBase:
 
         record = stats.compile(population) if stats else {}
         logbook.record(gen=0, nevals=len(invalid_ind), **record)
-        if verbose:
-            print(logbook.stream)
+        if verbose: print(logbook.stream)
 
         # main loop
         for gen in range(1, ngen + 1):
-            # select + colonare
-            #offspring = tools.selTournament(population, len(population), tournsize=3)
             offspring = toolbox.select(population, len(population))
             offspring = list(map(toolbox.clone, offspring))
 
@@ -358,32 +366,27 @@ class GPBase:
                 if callable(ind) or not hasattr(ind, "fitness"):
                     raise TypeError(f"Selected offspring invalid at {i}: {type(ind)} {ind}")
 
-            # salvăm fitness-ul părintelui pentru reward
+            # save parent fitness for reward
             for ind in offspring:
                 if hasattr(ind, "op_id"): delattr(ind, "op_id")
                 ind.parent_fitness = ind.fitness.values[0]
 
-            # === AOS: aplicăm ORI mutație ORI crossover din aceeași listă ===
             for i in range(0, len(offspring) - 1, 2):
                 ind1 = offspring[i]
                 ind2 = offspring[i + 1]
 
-                r = random.random()
-
-                if (self.use_aos or self.use_qlearning) and r >= varpb:
+                if  random.random() >= varpb:
                     # no operator is applied on this pair
                     continue
 
                 # choose an operator
-                if self.use_aos:
+                if self.aos_type is self.AOSType.AOS: #self.use_aos:
                     op_idx = np.random.choice(np.arange(self.N_OPS), p=self.op_probs)
-                elif self.use_qlearning:
-                    #Selectează indexul unui operator folosind o politică ε-greedy peste Q_ops.
-                    if random.random() < self.EPSILON_Q:
-                        # explorare: alegem un operator random
+                elif self.aos_type is self.AOSType.AOS_MEMORY: #self.use_qlearning:
+                    #Selecte an operator using a ε-greedy policy over Q_ops.
+                    if random.random() < self.EPSILON_Q: # explore: select random an operator
                         op_idx = random.randrange(self.N_OPS)
-                    else:
-                        # exploatare: alegem operatorul cu Q maxim
+                    else: #exploit: select the operator with maximal Q
                         op_idx =  int(np.argmax(self.Q_ops))
                 else: #no strategy to select operator
                     op_idx = np.random.choice(np.arange(self.N_OPS))
@@ -391,79 +394,58 @@ class GPBase:
                 op_spec = self.OP_SPECS[op_idx]
 
                 if op_spec.type == "crossover":
-                    # CROSSOVER
                     child1, child2 = op_spec.apply(ind1, ind2)
-                    child1.op_id = op_idx
-                    child2.op_id = op_idx
-
-                    offspring[i], offspring[i + 1] = child1, child2
-                    if hasattr(child1, "fitness"):
-                        if hasattr(child1.fitness, "values"):
-                            del child1.fitness.values
-                    if hasattr(child2, "fitness"):
-                        if hasattr(child2.fitness, "values"):
-                            del child2.fitness.values
-
                 else:
-                    # MUTATION
                     child1, _ = op_spec.apply(ind1)
                     child2, _ = op_spec.apply(ind2)
 
-                    child1.op_id = op_idx
-                    child2.op_id = op_idx
+                #save information for AOS
+                child1.op_id = op_idx
+                child2.op_id = op_idx
 
-                    offspring[i], offspring[i + 1] = child1, child2
-                    if hasattr(child1, "fitness"):
-                        if hasattr(child1.fitness, "values"):
-                            del child1.fitness.values
-                    if hasattr(child2, "fitness"):
-                        if hasattr(child2.fitness, "values"):
-                            del child2.fitness.values
-
-            # =================================================================
+                offspring[i], offspring[i + 1] = child1, child2
+                if hasattr(child1, "fitness"):
+                    if hasattr(child1.fitness, "values"):
+                        del child1.fitness.values
+                if hasattr(child2, "fitness"):
+                    if hasattr(child2.fitness, "values"):
+                        del child2.fitness.values
+            #simplify population
             if gen % self.simplify_frequency == 0:
                 offspring = self.simplify_population(offspring, toolbox)
-
 
             # evaluate newly created individuals
             for i, ind in enumerate(offspring):
                 if not hasattr(ind, "fitness"):
-                    raise TypeError(
-                        f"Invalid offspring at index {i}: type={type(ind)} value={ind}"
-                    )
+                    raise TypeError(f"Invalid offspring at index {i}: type={type(ind)} value={ind}")
 
             invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
             fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
             for ind, fit in zip(invalid_ind, fitnesses):
                 ind.fitness.values = fit
 
-            # ====== AOS: calculăm reward per operator ======
+            # ====== Update AOS information ======
             for ind in offspring:
                 if hasattr(ind, "op_id"):
-                    parent_fit = ind.parent_fitness
-                    child_fit = ind.fitness.values[0]
-                    # ex: pentru minimizare
-                    delta = parent_fit - child_fit
-                    reward = max(0.0, delta)
+                    #parent_fit - child_fit
+                    reward = max(0.0, ind.parent_fitness - ind.fitness.values[0])
 
-                    o = ind.op_id  # indexul operatorului folosit
-                    if self.use_aos:
+                    o = ind.op_id  # index of used operator
+                    if self.aos_type is self.AOSType.AOS:#self.use_aos:
                         self.op_rewards[o] += reward
                         self.op_counts[o] += 1.0
 
-                    if self.use_qlearning:
+                    elif self.aos_type is self.AOSType.AOS_MEMORY:#self.use_qlearning:
                         # update Q(o) ← Q(o) + α * (r - Q(o))
                         self.Q_ops[o] = self.Q_ops[o] + self.ALPHA_Q * (reward - self.Q_ops[o])
 
-            if self.use_aos:
-                # actualizăm probabilitățile operatorilor
+            if self.aos_type is self.AOSType.AOS:
+                #update operator probabilities
                 self.update_operator_probs()
             # ===============================================
 
             # hall of fame + log
-            if halloffame is not None:
-                halloffame.update(offspring)
-
+            if halloffame is not None: halloffame.update(offspring)
             population[:] = toolbox.select(offspring, len(population))
 
             record = stats.compile(population) if stats else {}
@@ -486,8 +468,8 @@ class GPBase:
             halloffame=self.hof,
             verbose=True
         )
-
         return final_pop, logbook
+
     @classmethod
     def load(cls, file: str, config: dict = None, logger: Logger = None):
         """
@@ -500,49 +482,47 @@ class GPBase:
         :return: the compiled tree
 
         """
-        evaluation_type = config.get('evaluation_type', 'best')
-        print("load-self.evaluation_type", evaluation_type)
+        evaluation_type = GPBase.RuleEvaluationType(config.get('evaluation_type', 'best'))
+        print("Evaluation_type", evaluation_type)
 
         with open(f"{file}.pkl", "rb") as handle:
             data = pickle.load(handle)
-            print("load() data: ", data)
 
         toolbox = base.Toolbox()
-        from src.agents.gp.gp_alg_aos import GP_AOS
-        from src.agents.gp.gp_alg_disp_route import GP_Disp_Route
-        if issubclass(cls, GP_AOS):
+        from src.agents.gp.gp_1tree import GP_One_Tree
+        from src.agents.gp.gp_2trees import GP_Two_Trees
+        if issubclass(cls, GP_One_Tree):
             toolbox.register("compile", gp.compile, pset=cls.configure_terminals())
-        elif issubclass(cls, GP_Disp_Route):
+        elif issubclass(cls, GP_Two_Trees):
             pset_disp, pset_route = cls.configure_terminals()
 
             toolbox.register("compile_disp", gp.compile, pset=pset_disp)
             toolbox.register("compile_route", gp.compile, pset=pset_route)
 
-        print("evaluation_type", evaluation_type)
-        if evaluation_type == 'best':
+        if evaluation_type is GPBase.RuleEvaluationType.BEST:
             best = data['best_ind']
-            from src.agents.gp.gp_alg_aos import GP_AOS
-            from src.agents.gp.gp_alg_disp_route import GP_Disp_Route
-            if issubclass(cls, GP_AOS):
+            # let it here to avoid recursive file inclusion
+            from src.agents.gp.gp_1tree import GP_One_Tree
+            from src.agents.gp.gp_2trees import GP_Two_Trees
+            if issubclass(cls, GP_One_Tree):
                 return [toolbox.compile(expr=best)], best
-            elif issubclass(cls, GP_Disp_Route):
+            elif issubclass(cls, GP_Two_Trees):
                 return [toolbox.compile_disp(expr=best[0]),
                         toolbox.compile_route(expr=best[1])], best
-        elif evaluation_type == 'assemble' or evaluation_type == 'assemble-test':
+        elif (evaluation_type is GPBase.RuleEvaluationType.ASSEMBLE or
+              evaluation_type is GPBase.RuleEvaluationType.ASSEMBLE_INSTANCES):
             assemble_fct = []
-            print('hof', len(data['hof']),data['hof'])
+
             for el in data['hof']:
-                from src.agents.gp.gp_alg_aos import GP_AOS
-                from src.agents.gp.gp_alg_disp_route import GP_Disp_Route
-                print("GP_DS?", issubclass(cls, GP_Disp_Route))
-                print("GP_AOS?", issubclass(cls, GP_AOS))
-                if issubclass(cls, GP_AOS):
+                #let it here to avoid recursive file inclusion
+                from src.agents.gp.gp_1tree import GP_One_Tree
+                from src.agents.gp.gp_2trees import GP_Two_Trees
+
+                if issubclass(cls, GP_One_Tree):
                     assemble_fct.append([toolbox.compile(expr=el)])
-                elif issubclass(cls, GP_Disp_Route):
+                elif issubclass(cls, GP_Two_Trees):
                     assemble_fct.append([toolbox.compile_disp(expr=el[0],),
                                          toolbox.compile_route(expr=el[1])])
-                print(el,assemble_fct)
-            print("assemble_fct",len(assemble_fct))
             return assemble_fct, data['hof']
 
 
@@ -552,31 +532,21 @@ class GPBase:
     def save(self, file: str) -> None:
         """
         Save model as pickle file
-
         :param file: Path under which the file will be saved
-
         :return: None
-
         """
         params_dict = self.__dict__.copy()
         del params_dict['logger']
-        data = {
-            "best_ind": self.best_ind,
-            "hof": self.hof
-        }
+        data = { "best_ind": self.best_ind, "hof": self.hof }
 
         with open(f"{file}.pkl", "wb") as handle:
             pickle.dump(data, handle)
 
         if self.individual_trees_no == 1:
-            data_txt = {
-                "best_ind": infix_str(self.best_ind),
-                "hof": [infix_str(ind) for ind in self.hof],
-            }
+            data_txt = { "best_ind": infix_str(self.best_ind), "hof": [infix_str(ind) for ind in self.hof] }
         else:
-            data_txt = {
-                "best_ind": [infix_str(self.best_ind[0]), infix_str(self.best_ind[1])],
-                "hof": [[infix_str(ind[0]), infix_str(ind[1])] for ind in self.hof],
+            data_txt = { "best_ind": [infix_str(self.best_ind[0]), infix_str(self.best_ind[1])],
+                         "hof": [[infix_str(ind[0]), infix_str(ind[1])] for ind in self.hof],
             }
 
         with open(f"{file}.txt", "w") as handle:

@@ -63,9 +63,6 @@ wandb/*
 data/logs/*
 !data/logs/.gitkeep
 
-results/*/*.txt
-
-results
 *.pkl
 data/models/compare.pkl
 

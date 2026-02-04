@@ -22,6 +22,7 @@ from tqdm import tqdm
 from datetime import datetime
 from collections import deque
 
+from src.agents.gp.gp_common import GPBase
 from src.environments.environment_loader import EnvironmentLoader
 from src.agents.heuristic.heuristic_agent import HeuristicSelectionAgent
 from src.utils.evaluations import EvaluationHandler
@@ -110,7 +111,9 @@ def run_episode(env, model, heuristic_id: Union[str, None], handler: EvaluationH
     while not done:
         steps += 1
         #  add sp_type to heuristic_agent and other values for LETSA heuristic
-        action, action_mode, completion_time = get_action(env, model, heuristic_id, heuristic_agent, sp_type, feasible_tasks, visited, max_deadline, gp_individual_trees_no)
+        action, action_mode, completion_time = get_action(env, model, heuristic_id, heuristic_agent,
+                                                          sp_type, feasible_tasks, visited, max_deadline,
+                                                          gp_individual_trees_no)
         #  next step should be taken based on the task_idx in case of asp
         if sp_type == 'asp' and action_mode == 'heuristic':
             if heuristic_id == 'LETSA':
@@ -339,7 +342,7 @@ def main(external_config=None):
 
 
     for seed in seeds:
-        with open(f"{path_results_file}_seed_{seed}.json", "w", encoding="utf-8") as outfile:
+        with (open(f"{path_results_file}_seed_{seed}.json", "w", encoding="utf-8") as outfile):
 
             config['seed'] = seed
             config['saved_model_name']= f'{model_file}_seed_{seed}'
@@ -356,21 +359,20 @@ def main(external_config=None):
             model, initial_model= (aux_model.load(file=best_model_path, config=config, logger=logger))
             run_heuristics = False
 
-            from src.agents.gp.gp_alg_aos import GP_AOS
-            from src.agents.gp.gp_alg_disp_route import GP_Disp_Route
+            from src.agents.gp.gp_1tree import GP_One_Tree
+            from src.agents.gp.gp_2trees import GP_Two_Trees
             def is_model(obj, target_cls):
                 return issubclass(obj, target_cls) if isinstance(obj, type) else isinstance(obj, target_cls)
 
             gp_individual_trees_no = None
-            if is_model(aux_model, GP_AOS):
+            if is_model(aux_model, GP_One_Tree):
                 gp_individual_trees_no = 1
-            elif is_model(aux_model, GP_Disp_Route):
+            elif is_model(aux_model, GP_Two_Trees):
                 gp_individual_trees_no = 2
 
-            gp_evaluation_type = config.get('evaluation_type')
-            #print("!!!!!!!!before gp", gp_evaluation_type)
-            if gp_evaluation_type == 'assemble-test':
-                print("model", len(model))
+            gp_evaluation_type = GPBase.RuleEvaluationType(config.get('evaluation_type'))
+
+            if gp_evaluation_type is GPBase.RuleEvaluationType.ASSEMBLE_INSTANCES:
                 rez={"runs":[]}
                 for m in model:
                     results = test_model_and_heuristic(config=config, model=m, data_test=data, data_test_names=data_names,
@@ -380,7 +382,6 @@ def main(external_config=None):
                     rez["runs"].append(results)
                 json.dump(rez, outfile, indent=2)
             else:
-
                 results = test_model_and_heuristic(config=config, model=model, data_test=data, data_test_names=data_names,
                                                    plot_ganttchart=parse_args.plot_ganttchart, logger=logger, binary_features=binary_features, run_heuristics=run_heuristics,
                                                    gp_individual_trees_no=gp_individual_trees_no)

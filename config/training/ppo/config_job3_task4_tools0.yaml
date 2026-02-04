@@ -21,7 +21,7 @@ overwrite_split_seed: False
                   # This will be used in "weights and biases" as well
 config_description: tasks_3x4
 # (O)   [string]  Set a directory where you want to save the agent model
-experiment_save_path: models
+experiment_save_path: models-asptrain-small
 # (O)   [int]:    Wandb mode choose: choose from [0: no wandb, 1: wandb_offline, 2: wandb_online]
 wandb_mode: 0
 # (O)   [string]  Set a wandb project where you want to upload all wandb logs

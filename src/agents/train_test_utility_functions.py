@@ -23,17 +23,15 @@ from src.agents.reinforcement_learning.ppo import PPO
 from src.agents.reinforcement_learning.dqn import DQN
 from src.agents.reinforcement_learning.ppo_masked import MaskedPPO
 from src.agents.reinforcement_learning.ppo_gnn import PPOGNN
-from src.agents.gp.gp_alg import GP
-from src.agents.gp.gp_alg_aos import GP_AOS
-from src.agents.gp.gp_alg_disp_route import GP_Disp_Route
+from src.agents.gp.gp_1tree import GP_One_Tree
+from src.agents.gp.gp_2trees import GP_Two_Trees
 
 # Constants
 TIMESTAMP: str = f"{datetime.datetime.now().strftime('%d%m%Y%H%M')}"
-AGENT_DICT: Dict[str, str] = {'ppo_masked': 'MaskedPPO', 'ppo': 'PPO', 'dqn': 'DQN', 'ppo_gnn': 'PPOGNN', 'gp': 'GPi',
-                              'gp-aos': 'GP_AOS', 'gp-dr': 'GP_Disp_Route'}
+AGENT_DICT: Dict[str, str] = {'ppo_masked': 'MaskedPPO', 'ppo': 'PPO', 'dqn': 'DQN', 'ppo_gnn': 'PPOGNN',
+                              'gp-1tree': 'GP_One_Tree', 'gp-2trees': 'GP_Two_Trees'}
 TRAIN_ALGORITHM_PARAM: str = 'algorithm'
 TEST_ALGORITHM_PARAM: str = 'test_algorithm'
-
 
 def load_config(config_path, external_config) -> dict:
     """

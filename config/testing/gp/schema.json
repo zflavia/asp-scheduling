@@ -6,7 +6,9 @@
             "type": "string"
         },
         "algorithm": {
-            "type": "string"
+            "type": "string",
+            "enum": ["gp-1tree", "gp-2trees"],
+            "description": "The algorithm to use — only 'gp-1tree' and 'gp-2trees' is valid for this template."
         },
         "instances_file": {
             "type": "string"
@@ -36,7 +38,12 @@
         },
         "wandb_project": {
             "type": "string"
-        }
+        },
+        "evaluation_type": {
+            "type": "string",
+            "enum": ["best", "assemble", "assemble-instances"],
+            "description": "The algorithm to use — only 'best', 'assemble' and 'assemble-instance' is valid for this template."
+          }
     },
     "required": [
         "sp_type",
@@ -44,6 +51,6 @@
         "instances_file",
         "environment",
         "seed",
-        "config_description"
+        "evaluation_type"
     ]
 }

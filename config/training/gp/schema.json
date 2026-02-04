@@ -6,8 +6,8 @@
   "properties": {
     "algorithm": {
       "type": "string",
-      "enum": ["gp", "gp-aos", "gp-dr"],
-      "description": "The algorithm to use — only 'gp' and 'gp-aos' is valid for this template."
+      "enum": ["gp-1tree", "gp-2trees"],
+      "description": "The algorithm to use — only 'gp-1tree' and 'gp-2trees' is valid for this template."
     },
     "instances_file": {
       "type": "string",
@@ -61,7 +61,7 @@
     },
     "gp_generations_number": {
       "type": "integer",
-      "minimum": 10,
+      "minimum": 5,
       "description": "Stooping criteria: Number of repetitions."
     },
     "gp_simplify_frequency": {
@@ -77,7 +77,7 @@
     },
     "gp_aos_type": {
       "type": "string",
-      "enum": ["aos", "epsilon-qlearning", "random"],
+      "enum": ["aos", "aos-memory", "random"],
       "description": "The GP operator selection variant."
     },
     "gp_tournament_size": {

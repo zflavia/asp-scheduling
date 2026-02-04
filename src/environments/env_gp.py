@@ -1,5 +1,6 @@
 from typing import List
 
+from src.agents.gp.gp_common import GPBase
 from src.data_generator.task import Task
 from src.models.machine import Machine
 from src.environments.env_util import backward_planning_completion_time
@@ -7,14 +8,17 @@ from typing  import Any
 
 class EnvGP():
 
-    def __init__(self, config: dict, data: List[List[Task]], binary_features=None, from_test=False):
+    def __init__(self, config: dict, data: List[List[Task]], binary_features=None, from_test: bool=False):
         """
-        :param data: a list with the instances
+
+        :param config: configuration dictionary
+        :param data: a list with the test instances
+        :param binary_features: not used
+        :param from_test: boolean used to differentiate if it called from train aor test process
         """
         self.seed = config.get('seed', None)
         self.np = config.get('no_parallel_processes', 1)
-        self.evaluation_type = config.get('evaluation_type', 'best')
-        #print("self.evaluation_type", self.evaluation_type)
+        self.evaluation_type = GPBase.RuleEvaluationType(config.get('evaluation_type', 'best'))
 
         # import data containing all instances
         self.instances_no = len(data)
@@ -29,7 +33,6 @@ class EnvGP():
             self.get_next_instance() #only one instance is in instances list when environment is created from test
             self.tasks = self.operations
 
-        #TODO this are add because of the test function
         self.done = False #the instance was scheduled
         self.tardiness = [0]
         self.action_history = []
@@ -43,10 +46,6 @@ class EnvGP():
 
         self.no_operations = len(self.operations)
         self.no_machines   = len(self.operations[0].machines)
-
-        #print("self.no_operations", self.no_operations, "self.no_machines", self.no_machines)
-        # for op in self.operations:
-        #     print(self.operations)
 
         self.no_uncheduled_operations = self.no_operations
         self.no_used_machines = self.no_machines
@@ -65,15 +64,13 @@ class EnvGP():
         self.index_operation = dict()
         self.max_deadline = 0
         for op_idx, operation in enumerate(self.operations):
-            #print(operation.task_index, operation.parent_index, operation.machines)
 
             operation.done = False #need because GP evaluates multiple times an instance
             operation.last_child_scheduled_finished = 0
 
             self.index_operation[operation.task_id] = op_idx
             self.max_deadline = operation.deadline if operation.deadline > self.max_deadline else self.max_deadline
-            # operation/task status (-1 - unscheduled, 0 - scheduled,  1 - redy)
-            #print(op_idx, "children", operation.children, len(operation.children), "parent", operation.parent_index)
+
             self.operations_redy.append(1 if len(operation.children) == 0 else -1)
             if len(operation.children) == 0:
                 operation.release_time = 0
@@ -82,17 +79,10 @@ class EnvGP():
                         self.machine_queue_op_no[m_idx] += 1
                         self.machine_queue_op_duration[m_idx] += operation.execution_times_setup[m_idx]
 
-            #print(self.operations_redy)
-            #print("operation.machines", operation.machines)
             for m_idx, elibigle_machine in enumerate(operation.machines):
                 if elibigle_machine:
                     self.machine_operation_no[m_idx] += 1
 
-        # print("new instance", self.current_instance_index, "op no", self.no_operations, "m no", self.no_machines, "deadline",  self.max_deadline)
-        # print("redy op", [op_idx for op_idx, redy_op in enumerate(self.operations_redy) if redy_op == 1])
-        # print("!!!get_next_instance-end", self.no_operations, self.no_machines,  self.max_deadline)
-        # print(" self.operations_redy", self.operations_redy)
-        # print("index_operation", self.index_operation)
 
     def get_heppler_informations(self):
         """
@@ -116,14 +106,14 @@ class EnvGP():
 
     def get_next_action(self, priority_func: Any, individual_trees_no=1):
         if individual_trees_no == 1:
-            return self.get_next_action_pair(priority_func)
+            return self.get_next_action_1tree(priority_func)
         elif individual_trees_no == 2:
-            return self.get_next_action_dispatch_routing(priority_func)
+            return self.get_next_action_2trees(priority_func)
         return None
 
-    def get_next_action_dispatch_routing(self, priority_func: Any):
+    def get_next_action_2trees(self, priority_func: Any):
         '''
-        Selects the next pair to be scheduled
+        Selects the next pair (operation, machine) to be scheduled
         :param priority_func: a GP priority rule or rules that selects a pair (op, machine)
         :return:
         '''
@@ -131,7 +121,6 @@ class EnvGP():
         max_processing_times_per_machine, no_of_operations_executable_on_machine = self.get_heppler_informations()
         makespan = self.get_makespan()
 
-        # print ("redy op", [op_idx for op_idx, redy_op in enumerate(self.operations_redy) if redy_op ==1])
         for op_idx, redy_op in enumerate(self.operations_redy):
             if redy_op == 1:
                 operation = self.operations[op_idx]
@@ -146,7 +135,6 @@ class EnvGP():
                 # 4. O_Flex - Ratio of machines that are eligible for Oij to total machine number
                 no_eligible_machines = operation.machines.count(1)
                 feat_op_flexibility_factor = float(no_eligible_machines) / self.no_machines
-                # TODO vezi daca are sens self.no_used_machines sa fie la fel ca la GNN
 
                 # 5.O_Path_OpNo
                 feat_op_path_opNO = operation.no_remaining_operations
@@ -159,7 +147,7 @@ class EnvGP():
 
                 score = 0
                 l = []
-                if self.evaluation_type == 'assemble':
+                if self.evaluation_type is GPBase.RuleEvaluationType.ASSEMBLE:
                     for pf in priority_func:
                         _pf = pf[0]
                         a = _pf(feat_op_mean_time, feat_op_min_time, feat_op_flexibility_factor,
@@ -167,11 +155,12 @@ class EnvGP():
                         l.append(a)
                         score += a
                     score /= len(priority_func)
-                elif self.evaluation_type == 'best' or self.evaluation_type == 'assemble-test':
+                elif (self.evaluation_type is GPBase.RuleEvaluationType.BEST or
+                      self.evaluation_type is GPBase.RuleEvaluationType.ASSEMBLE_INSTANCES):
                     _pf = priority_func[0]
                     score = _pf(feat_op_mean_time, feat_op_min_time, feat_op_flexibility_factor,
                                 feat_op_path_opNO, feat_op_path_minLen, feat_op_ready)
-                # print(score,l)
+
                 ready_operations.append((score, op_idx))
         ready_operations.sort(reverse=True)  # higher score first
 
@@ -209,19 +198,9 @@ class EnvGP():
 
                 feat_machine_compleation_time_backward = end_time
 
-                # if feat_machine_compleation_time_append != feat_machine_compleation_time_backward:
-                #     print('M_CT_A',feat_machine_compleation_time_append,'M_CT_b',feat_machine_compleation_time_backward,
-                #           [[[task.started,task.finished] for task in self.machines[m_idx].intervals]], selected_operation.last_child_scheduled_finished, selected_operation.execution_times_setup[m_idx])
-
-                # print("priority_func", priority_func)
-                # print(feat_op_mean_time, feat_op_min_time, feat_op_flexibility_factor,
-                #                       feat_machine_ready_time, feat_machine_operation_proportion,
-                #                       feat_machine_utilization_percentage,
-                #                       feat_edge_processing_time, feat_edge_PT_maxPT, feat_edge_PT_maxMachinePT)
-
                 score = 0
                 l = []
-                if self.evaluation_type == 'assemble':
+                if self.evaluation_type is GPBase.RuleEvaluationType.ASSEMBLE:
                     for pf in priority_func:
                         _pf = pf[1]
                         a = _pf(feat_edge_processing_time,
@@ -235,7 +214,8 @@ class EnvGP():
                         l.append(a)
                         score += a
                     score /= len(priority_func)
-                elif self.evaluation_type == 'best' or self.evaluation_type == 'assemble-test':
+                elif (self.evaluation_type is GPBase.RuleEvaluationType.BEST or
+                      self.evaluation_type is GPBase.RuleEvaluationType.ASSEMBLE_INSTANCES):
                     _pf = priority_func[1]
                     score = _pf(feat_edge_processing_time,
                                 feat_machine_ready_time,
@@ -246,7 +226,7 @@ class EnvGP():
                                 feat_machine_compleation_time_append,
                                 feat_machine_compleation_time_backward
                                 )
-                # print(score,l)
+
                 ready_machines.append((score, m_idx))
 
         # select pair
@@ -254,13 +234,13 @@ class EnvGP():
 
         _, selected_machine_idx = ready_machines.pop(0)
         self.action_history.append((selected_operation_idx, selected_machine_idx))
-        # print("op", selected_operation_idx, "m", selected_machine_idx)
+
         return (selected_operation_idx, selected_machine_idx)
 
 
-    def get_next_action_pair(self, priority_func: Any, individual_trees_no=1):
+    def get_next_action_1tree(self, priority_func: Any, individual_trees_no=1):
         '''
-        Selects the next pair to be scheduled
+        Selects the next pair (operation, machine) to be scheduled
         :param priority_func: a GP priority rule or rules that selects a pair (op, machine)
         :return:
         '''
@@ -268,7 +248,6 @@ class EnvGP():
         max_processing_times_per_machine, no_of_operations_executable_on_machine = self.get_heppler_informations()
         makespan = self.get_makespan()
 
-        #print ("redy op", [op_idx for op_idx, redy_op in enumerate(self.operations_redy) if redy_op ==1])
         for op_idx, redy_op in enumerate(self.operations_redy):
             if redy_op == 1:
                 operation = self.operations[op_idx]
@@ -283,7 +262,6 @@ class EnvGP():
                 # 4. O_Flex - Ratio of machines that are eligible for Oij to total machine number
                 no_eligible_machines = operation.machines.count(1)
                 feat_op_flexibility_factor = float(no_eligible_machines) / self.no_machines
-                # TODO vezi daca are sens self.no_used_machines sa fie la fel ca la GNN
 
                 #5.O_Path_OpNo
                 feat_op_path_opNO = operation.no_remaining_operations
@@ -339,7 +317,7 @@ class EnvGP():
 
                         score = 0
                         l=[]
-                        if self.evaluation_type == 'assemble':
+                        if self.evaluation_type is GPBase.RuleEvaluationType.ASSEMBLE:
                             for pf in priority_func:
                                 _pf = pf[0]
                                 # a = _pf(feat_op_mean_time, feat_op_min_time, feat_op_flexibility_factor,
@@ -361,7 +339,8 @@ class EnvGP():
                                 l.append(a)
                                 score+=a
                             score /= len(priority_func)
-                        elif self.evaluation_type == 'best' or self.evaluation_type == 'assemble-test':
+                        elif self.evaluation_type is  GPBase.RuleEvaluationType.BEST or \
+                                self.evaluation_type is GPBase.RuleEvaluationType.ASSEMBLE_INSTANCES:
                             _pf = priority_func[0]
                             # score = _pf(feat_op_mean_time, feat_op_min_time, feat_op_flexibility_factor,
                             #             feat_machine_ready_time, feat_machine_operation_proportion,
@@ -375,42 +354,36 @@ class EnvGP():
                             score = _pf(feat_edge_processing_time,
                                         feat_edge_PT_maxPT,
                                         feat_edge_PT_maxMachinePT,
-                                         feat_machine_compleation_time_append,
-                                         feat_machine_compleation_time_backward
-                                          )
-                        #print(score,l)
+                                        feat_machine_compleation_time_append,
+                                        feat_machine_compleation_time_backward
+                                        )
                         ready_pairs.append((score, op_idx, m_idx))
         # select pair
         ready_pairs.sort(reverse=True)  # higher score first
 
         _, selected_operation_idx, selected_machine_idx = ready_pairs.pop(0)
         self.action_history.append((selected_operation_idx, selected_machine_idx))
-        #print("op", selected_operation_idx, "m", selected_machine_idx)
+
         return (selected_operation_idx, selected_machine_idx)
 
     def step(self, action, **args):
         '''
         Shedule operation on machine and updates the internal information
-        :param action:
+        :param action: contains the selected pair (operation, amchine)
         :param args:
         :return:
         '''
-
         selected_operation_idx = action[0]
         selected_machine_idx = action[1]
-        #print("op_idx", selected_operation_idx , "m_idx",action[1])
-
 
         # update operations structure
         selected_operation = self.operations[selected_operation_idx]
 
-        #primul interval pe care încape
+        #first interval where it fits
         index_machine_interval, start_time, completion_time = backward_planning_completion_time(selected_operation,
                                                                         selected_machine_idx,
                                                                         self.machines)
-        #intervalul care se potriveste cel mai bine ?!
-
-        #le calculeaza fct de mai sus - asta am modificat pt back insertion
+        #after last operation scheduled
         # start_time = max(selected_operation.last_child_scheduled_finished,
         #                  self.machine_ready_time[selected_machine_idx])  # FM max din cele 2
         # completion_time = start_time + selected_operation.execution_times_setup[selected_machine_idx]
@@ -434,17 +407,10 @@ class EnvGP():
                     parent_ready = False
             if parent_ready:
                 self.operations_redy[self.index_operation[selected_op_parent.task_id]] = 1
-                selected_op_parent.release_time = selected_op_parent.last_child_scheduled_finished #TODO: FM - 2 variabile care stocheaza acceasi informatie
-
-        # print(' self.operations_redy',self.operations_redy)
-        # print('Scheduled operation: ', selected_operation_idx, self.operations[selected_operation_idx].started,
-        #       self.operations[selected_operation_idx].finished, self.operations[selected_operation_idx].selected_machine,
-        #       self.operations[selected_operation_idx].done,self.operations[selected_operation_idx].parent_index)
-        # if selected_op_parent_idx:
-        #     print('  parent strat time', self.operations[selected_op_parent_idx].last_child_scheduled_finished)
+                selected_op_parent.release_time = selected_op_parent.last_child_scheduled_finished
 
         # update machines
-        #self.machines[selected_machine_idx].add_last_interval(selected_operation) -inlocuit cu partea de insert before
+        #self.machines[selected_machine_idx].add_last_interval(selected_operation) - in case of inserting after last operation scheduled
         self.machines[selected_machine_idx].add_interval(index_machine_interval, selected_operation)
 
 
@@ -461,7 +427,6 @@ class EnvGP():
                 if self.machine_operation_no[m_idx] == 0:
                     self.no_used_machines -= 1
 
-        #print(" self.operations_redy", self.operations_redy)
         self.done = True if self.operations_redy.count(1) == 0 else False
 
         return 0, 0, self.done
@@ -471,15 +436,11 @@ class EnvGP():
             :param priority_func: the function used to select next pair (operation, machine)
             :return:
             """
-            #print("evaluate_instance", self.current_instance_index)
-            #if self.current_instance_index != 0: #needed because for test.py the first instance need to be load in init function
             self.get_next_instance()
-            #print("machine time:",self.machine_ready_time)
-            #print("priority_funcs", priority_funcs)
+
             while not self.done:
                 action = self.get_next_action(priority_funcs, get_next_action)
                 self.step(action)
-                #print("max(self.machine_ready_time)",max(self.machine_ready_time))
 
             return self.get_makespan() #makespan
 

@@ -2,12 +2,10 @@
 
 Features
 ========
-* **simplify_individual** – încearcă:
-  1. `deap.gp.simplify` (SymPy‑powered) – dacă funcționează.
-  2. Peephole simplifier cu reguli algebrice + constant‑fold.
-  În caz de eroare, întoarce individul original.
-
-* **tree_str** – ascii‑tree pentru un `PrimitiveTree`.
+* **simplify_individual** – tries:
+  1. `deap.gp.simplify` (SymPy‑powered) – if it works.
+  2. Custom algebraic simplification
+* **tree_str** – ascii‑tree for a `PrimitiveTree`.
 """
 from __future__ import annotations
 
@@ -27,10 +25,8 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
 def _is_const(node) -> bool:
     return isinstance(node, Number)
-
 
 def _const_val(node) -> Union[int, float]:
     return float(node)
@@ -202,7 +198,7 @@ def simplify_individual(ind: gp.PrimitiveTree, pset):
 
     #simplified_nested = walk(nested)
     simplified_nested = nested
-    for _ in range(5):  # limită de siguranță
+    for _ in range(5):  #a safety limit
         new_nested = walk(simplified_nested)
         if new_nested == simplified_nested:
             break
@@ -263,7 +259,7 @@ _PRECEDENCE: Dict[str, int] = {
     "min": 0,
     "gt": 0,
     "lt": 0,
-    "protected_if": -1,   # leagă cel mai slab
+    "protected_if": -1,
 }
 
 _SYMBOLS: Dict[str, str] = {
