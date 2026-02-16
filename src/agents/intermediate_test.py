@@ -84,8 +84,14 @@ class IntermediateTest:
             )
             self.logger.dump()
 
+            print('interm_test/mean_reward', rwd_mean)
+            print('interm_test/mean_tardiness', tardiness_mean)
+            print('interm_test/mean_makespan', makespan_mean)
+
+
             # if first test or reward >= current optimum, reset optimum and save model
             if self.last_time_trigger == 0 or rwd_mean >= self.optimum_rwd:
+                print("[it] improved")
                 self.optimum_rwd = rwd_mean
                 best_model_save_path = ModelHandler.get_best_model_path(self.env_config)
                 model.save(best_model_save_path)

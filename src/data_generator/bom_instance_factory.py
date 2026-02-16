@@ -141,6 +141,9 @@ def load_bom_files(input_directory, similar_instances_number, should_modify_inst
                         task.remaining_work += min(parent.execution_times_setup.values())
                         it_parent_index = parent.parent_index
 
+                #applay a dispatch rule
+                __fill_dispatch_rule_information(sorted_top, tasks_mapping_ids)
+
                 instance_list.append(sorted_top)
                 instance_name_list.append(Path(f.name).stem)
 
@@ -207,6 +210,70 @@ def load_bom_files(input_directory, similar_instances_number, should_modify_inst
 
     return instance_list, instance_name_list
 
+def __fill_dispatch_rule_information(tasks : list[Task], tasks_mapping_ids):
+    """
+    Apply a dispatch rule: operation selection rule (select task with minimum execution time from available task list);
+    machine selection rule (select machine that ensures lowest end time) and fill the information for the task
+    :param tasks:  the list of tasks available for current instance
+    :return: The updated task list that contains information regarding a base rule scheduling
+    """
+    ready_tasks = set()
+    scheduled_tasks = set()
+    for task in tasks:
+        if len(task.children) == 0:
+            ready_tasks.add(task.task_index)
+
+    print("ready_tasks", ready_tasks)
+    machines_no = len(tasks[0].machines)
+    machines_ready_time = [0]*machines_no
+
+    while len(ready_tasks) > 0:
+        print("ready_tasks", ready_tasks)
+        #slelect task with minimum PT
+        min_exectime = min ( (task for task in tasks if task.task_index in ready_tasks),
+                    key=lambda task: task.min_execution_times_setup)
+        #print("min_exectime", min_exectime)
+        candidates = [task for task in tasks if (task.task_index in ready_tasks) and task.min_execution_times_setup == min_exectime.min_execution_times_setup]
+        #print("candidates", candidates)
+        selected_task = random.choice(candidates)
+
+        #select machine that assures min end time
+        task_machines_end_time = {}
+        for index in range(machines_no):
+            if selected_task.machines[index] == 1:
+                makespan = max(machines_ready_time[index], selected_task.dr_start_time) + selected_task.execution_times_setup[index]
+                task_machines_end_time[index] = makespan
+        min_makespan = min(task_machines_end_time.values())
+        selected_machines = [k for (k,v) in task_machines_end_time.items() if v==min_makespan ]
+
+        selected_machine_index =  random.choice(selected_machines)
+
+        #update stucture
+        machines_ready_time[selected_machine_index] = task_machines_end_time[selected_machine_index]
+        selected_task.dr_end_time = task_machines_end_time[selected_machine_index]
+        selected_task.dr_makespan = max(machines_ready_time)
+
+        ready_tasks.remove(selected_task.task_index)
+        scheduled_tasks.add(selected_task.task_index)
+
+        if selected_task.parent_index is not None:
+            parent = tasks[selected_task.parent_index]
+
+            all_children_scheduled = True
+            start_time = 0
+            for child in parent.children:
+                if child not in scheduled_tasks:
+                    all_children_scheduled = False
+                    break
+                else:
+                    start_time = max(start_time, tasks[child].dr_end_time)
+
+            if all_children_scheduled:
+                ready_tasks.add(parent.task_index)
+                parent.dr_start_time = start_time
+
+
+
 def main(config_file_path, external_config=None):
 
     # get config
@@ -221,9 +288,9 @@ def main(config_file_path, external_config=None):
     )
 
     # comment if needed
-    for instance in instance_list:
-        for task in instance:
-            print(task)
+    # for instance in instance_list:
+    #     for task in instance:
+    #         print(task)
 
     # compute individual hash for each instance
     SPFactory.compute_and_set_hashes(instance_list)

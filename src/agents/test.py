@@ -232,6 +232,7 @@ def test_model(env_config: Dict, data: List[List[Task]], logger: Logger, plot: b
         # environment, _ = EnvironmentLoader.load(env_config, data=[data[test_i]], binary_features=binary_features,
         #                                         from_test=True)
         run_episode(environment, model, heuristic_id, evaluation_handler, env_config['sp_type'], gp_individual_trees_no)
+        print("evaluation_handler",evaluation_handler)
         # schedule_info = ''
         # for task in environment.tasks:
             # schedule_info += task.str_schedule_info_simple() + '\n'
@@ -282,6 +283,7 @@ def test_model_and_heuristic(config: dict, model, data_test: List[List[Task]], l
     res = test_model(model=model, **test_kwargs)
     results.update({'agent': res})
     results.update({'test-data-file-names': data_test_names})
+    print(results)
     # end_time = datetime.now()
     # # Calculate the timespan in milliseconds
     # timespan = (end_time - start_time).total_seconds() * 1000
@@ -342,7 +344,7 @@ def main(external_config=None):
 
 
     for seed in seeds:
-        with (open(f"{path_results_file}_seed_{seed}.json", "w", encoding="utf-8") as outfile):
+        with open(f"{path_results_file}_seed_{seed}.json", "w", encoding="utf-8") as outfile:
 
             config['seed'] = seed
             config['saved_model_name']= f'{model_file}_seed_{seed}'
@@ -370,22 +372,47 @@ def main(external_config=None):
             elif is_model(aux_model, GP_Two_Trees):
                 gp_individual_trees_no = 2
 
-            gp_evaluation_type = GPBase.RuleEvaluationType(config.get('evaluation_type'))
+            if gp_individual_trees_no is not None:
+                gp_evaluation_type = GPBase.RuleEvaluationType(config.get('evaluation_type'))
 
-            if gp_evaluation_type is GPBase.RuleEvaluationType.ASSEMBLE_INSTANCES:
-                rez={"runs":[]}
-                for m in model:
-                    results = test_model_and_heuristic(config=config, model=m, data_test=data, data_test_names=data_names,
-                                                       plot_ganttchart=parse_args.plot_ganttchart, logger=logger,
-                                                       binary_features=binary_features, run_heuristics=run_heuristics,
+                if gp_evaluation_type is GPBase.RuleEvaluationType.ASSEMBLE_INSTANCES:
+                    rez={"runs":[]}
+                    for m in model:
+                        results = test_model_and_heuristic(config=config, model=m, data_test=data, data_test_names=data_names,
+                                                           plot_ganttchart=parse_args.plot_ganttchart, logger=logger,
+                                                           binary_features=binary_features, run_heuristics=run_heuristics,
+                                                           gp_individual_trees_no=gp_individual_trees_no)
+                        rez["runs"].append(results)
+                    json.dump(rez, outfile, indent=2)
+                else:
+                    results = test_model_and_heuristic(config=config, model=model, data_test=data, data_test_names=data_names,
+                                                       plot_ganttchart=parse_args.plot_ganttchart, logger=logger, binary_features=binary_features, run_heuristics=run_heuristics,
                                                        gp_individual_trees_no=gp_individual_trees_no)
-                    rez["runs"].append(results)
-                json.dump(rez, outfile, indent=2)
-            else:
-                results = test_model_and_heuristic(config=config, model=model, data_test=data, data_test_names=data_names,
-                                                   plot_ganttchart=parse_args.plot_ganttchart, logger=logger, binary_features=binary_features, run_heuristics=run_heuristics,
+                    json.dump(results, outfile, indent=2)
+            else: #testeaza si vezi cum trebuie refactorizat
+                results = test_model_and_heuristic(config=config, model=model, data_test=data,
+                                                   data_test_names=data_names,
+                                                   plot_ganttchart=parse_args.plot_ganttchart, logger=logger,
+                                                   binary_features=binary_features, run_heuristics=run_heuristics,
                                                    gp_individual_trees_no=gp_individual_trees_no)
+                def convert(obj):
+                    if isinstance(obj, dict):
+                        return {k: convert(v) for k, v in obj.items()}
+                    elif isinstance(obj, list):
+                        return [convert(v) for v in obj]
+                    elif isinstance(obj, np.integer):
+                        return int(obj)
+                    elif isinstance(obj, np.floating):
+                        return float(obj)
+                    elif isinstance(obj, np.ndarray):
+                        return obj.tolist()
+                    else:
+                        return obj
+
+                results = convert(results)
+                print("beefore json", results)
                 json.dump(results, outfile, indent=2)
+
             plt.show()
 
 

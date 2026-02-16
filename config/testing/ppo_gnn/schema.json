@@ -1,0 +1,61 @@
+{
+    "title": "TESTING schema",
+    "type": "object",
+    "properties": {
+        "sp_type": {
+            "type": "string"
+        },
+        "algorithm": {
+            "type": "string"
+        },
+        "instances_file": {
+            "type": "string"
+        },
+        "environment": {
+            "type": "string"
+        },
+        "reward_strategy": {
+            "type": "string"
+        },
+        "reward_scale": {
+            "type": "number"
+        },
+        "saved_model_name": {
+            "type": "string"
+        },
+        "seed": {
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            }
+        },
+        "config_description": {
+            "type": "string"
+        },
+        "experiment_save_path": {
+            "type": "string"
+        },
+        "wandb_mode": {
+            "type": "integer"
+        },
+        "wandb_project": {
+            "type": "string"
+        },
+        "test_heuristics": {
+            "type": "array"
+        },
+        "reward_normalization_factor": {
+            "type": "number"
+        }
+    },
+    "required": [
+        "algorithm",
+        "instances_file",
+        "environment",
+        "seed",
+        "config_description",
+        "test_heuristics"
+    ]
+}

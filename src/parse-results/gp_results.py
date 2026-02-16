@@ -1,8 +1,12 @@
 import json
 import csv
+from statistics import stdev
+
 import numpy as np
 import pandas as pd
 import itertools
+
+from numpy.ma.extras import average
 from scipy.stats import friedmanchisquare, wilcoxon
 
 
@@ -136,16 +140,16 @@ def load_dataset(dataset_name, model_dr, model_pair, path_drsa, path_gp, seeds, 
 
     #GP
     for seed in seeds:
-        df = get_gp_data(df, f'GP_dr_ass_inst_{seed}',
-                               f'{path_gp}/{model_dr}/result_gp_dr_assemble_inst_seed_{seed}.json',
+        df = get_gp_data(df, f'GP_2t_ass_inst_{seed}',
+                               f'{path_gp}/{model_dr}/result_gp_2t_assemble_inst_seed_{seed}.json',
                          single_run=False)
     for seed in seeds:
-        df = get_gp_data(df, f'GP_dr_ass_{seed}',
-                               f'{path_gp}/{model_dr}/result_gp_dr_assemble_seed_{seed}.json')
+        df = get_gp_data(df, f'GP_2t_ass_{seed}',
+                               f'{path_gp}/{model_dr}/result_gp_2t_assemble_seed_{seed}.json')
 
     for seed in seeds:
-        df = get_gp_data(df, f'GP_dr_best_{seed}',
-                               f'{path_gp}/{model_dr}/result_gp_dr_best_seed_{seed}.json')
+        df = get_gp_data(df, f'GP_2t_best_{seed}',
+                               f'{path_gp}/{model_dr}/result_gp_2t_best_seed_{seed}.json')
 
     if load_gp_pair:
         for seed in seeds:
@@ -694,24 +698,24 @@ def sign_test(dataset_name, model, path_drsa, path_gp, seeds):
 
     df_ass_inst = pd.DataFrame()
     for seed in seeds:
-        print(f'{path_gp}/{model}/result_gp_dr_assemble_inst_seed_{seed}.json')
+        #print(f'{path_gp}/{model}/result_gp_dr_assemble_inst_seed_{seed}.json')
         df_ass_inst = load_gp(df_ass_inst,
-                         f'{path_gp}/{model}/result_gp_dr_assemble_inst_seed_{seed}.json', load_gp_pair=True)
+                         f'{path_gp}/{model}/result_gp_2t_assemble_inst_seed_{seed}.json', load_gp_pair=True)
     df_ass_inst["Algorithm"] = "gp_dr_ass_inst"
 
     df_ass = pd.DataFrame()
     for seed in seeds:
         df_ass = load_gp(df_ass,
-                               f'{path_gp}/{model}/result_gp_dr_assemble_seed_{seed}.json')
+                               f'{path_gp}/{model}/result_gp_2t_assemble_seed_{seed}.json')
     df_ass["Algorithm"] = "gp_dr_ass"
 
     df_best = pd.DataFrame()
     for seed in seeds:
         df_best = load_gp(df_best,
-                               f'{path_gp}/{model}/result_gp_dr_best_seed_{seed}.json')
-        print("df_best", df_best.shape)
+                               f'{path_gp}/{model}/result_gp_2t_best_seed_{seed}.json')
+        #print("df_best", df_best.shape)
     df_best["Algorithm"] = "gp_dr_best"
-    print(df_best.columns)
+    #print(df_best.columns)
 
     dfs = {
         "gp_dr_best": df_best,
@@ -787,7 +791,7 @@ def sign_test(dataset_name, model, path_drsa, path_gp, seeds):
             inst_details['std'] = df_instance_filtered[df_instance_filtered["Algorithm"] == alg]["Makespan"].head(10).std()
             inst_details['runtime'] = df_instance_filtered[df_instance_filtered["Algorithm"] == alg]["RunTime"].head(10).sum()
             insts_details[alg]=inst_details
-            print(upperBound, inst_details['min'], (upperBound - inst_details['min']) / upperBound)
+            #print(upperBound, inst_details['min'], (upperBound - inst_details['min']) / upperBound)
             gab_min[alg] += (upperBound - inst_details['min']) / upperBound
             gab_avg[alg] += (upperBound - inst_details['mean']) / upperBound
             runtime_inst += inst_details['runtime']
@@ -864,10 +868,253 @@ def sign_test(dataset_name, model, path_drsa, path_gp, seeds):
 
 
 
-dataset=datasets['vdeep-train']
-sign_test(dataset[0],"models-asptrain-large",
-             f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[1]}",
-             f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[2]}",
-             [0,200,400,600,800,1000,1500,2000,2500,3000])
+# dataset=datasets['vdeep-train']
+# sign_test(dataset[0],"models-asptrain-large",
+#              f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[1]}",
+#              f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[2]}",
+#              [0,200,400,600,800,1000,1500,2000,2500,3000])
+#
 
+
+
+def parse_rules_selected(in_files, seeds):
+    rules_prefix=["GP_dr_ass", "GP_dr_ass_inst", "GP_dr_best"]
+    rules_selection_frequency={}
+    for rule_prefix in rules_prefix:
+        for seed in seeds:
+            rules_selection_frequency[f'{rule_prefix}_{seed}'] = 0
+
+    print("rules_selection_frequency", rules_selection_frequency)
+
+
+#parse_rules_selected("", [0,200,400,600,800,1000])
+
+def load_gp(df, file_path, load_gp_pair=False):
+    with open(file_path, "r", encoding="utf-8") as f:
+        json_obj = json.load(f)
+
+    if load_gp_pair:
+        dfs = []
+        for i, json_obj in enumerate(json_obj["runs"]):
+            bom = json_obj["test-data-file-names"]
+            ms = json_obj["agent"]["makespan_tests"]
+            apply_gp_time = json_obj["agent"]["running_time"]
+
+            df_i = pd.DataFrame({
+                "Bom": bom,
+                "Makespan": ms,
+                "run": i,
+                "RunTime": apply_gp_time
+            })
+            dfs.append(df_i)
+        gp_all_df = pd.concat(dfs, ignore_index=True)
+        gp_min_df = (
+            gp_all_df
+            .groupby("Bom")
+            .agg(
+                Makespan=("Makespan", "min"),
+                RunTime=("RunTime", "sum")
+            )
+            .reset_index()
+        )
+        #print(gp_min_df)
+        _df = gp_min_df
+
+        #print("_df", df)
+
+    else:
+        boms = json_obj["test-data-file-names"]
+        makespan = json_obj["agent"]["makespan_tests"]
+        apply_gp_time = json_obj["agent"]["running_time"]
+        _df  = pd.DataFrame({"Bom": boms, "Makespan": makespan, "RunTime" : apply_gp_time})
+
+    if df.empty:
+        df = _df
+    else:
+        df = pd.concat([df, _df],  ignore_index=True)
+
+    print(df.columns)
+    return df
+
+
+def load_model(alg_name, model, path_gp, seeds):
+    df_ass_inst = pd.DataFrame()
+    for seed in seeds:
+        #print(f'{path_gp}/{model}/result_gp_dr_assemble_inst_seed_{seed}.json')
+        df_ass_inst = load_gp(df_ass_inst,
+                              f'{path_gp}/{model}/result_gp_2t_assemble_inst_seed_{seed}.json', load_gp_pair=True)
+    df_ass_inst["Algorithm"] = f"{alg_name}_ass_inst"
+
+    df_ass = pd.DataFrame()
+    for seed in seeds:
+        df_ass = load_gp(df_ass,
+                         f'{path_gp}/{model}/result_gp_2t_assemble_seed_{seed}.json')
+    df_ass["Algorithm"] = f"{alg_name}_ass"
+
+    df_best = pd.DataFrame()
+    for seed in seeds:
+        df_best = load_gp(df_best,
+                          f'{path_gp}/{model}/result_gp_2t_best_seed_{seed}.json')
+        #print("df_best", df_best.shape)
+    df_best["Algorithm"] = f"{alg_name}_best"
+    return df_best, df_ass, df_ass_inst
+
+
+def sign_test_v2(dataset_name, variant_model, path_drsa, path_gp, seeds):
+    # dispach rules
+    df = pd.read_csv(f"/{path_drsa}/{dataset_name}-dr.csv")
+
+    algo_cols = ['InstanceUpperBound', 'fcfs-b', 'fcfs-max', 'fcfs-min',
+                 'fop-b', 'fop-max', 'fop-min',
+                 'fopno-b-min', 'fopno-max-min', 'fopno-min-min',
+                 'letsa-avg', 'letsa-max', 'letsa-min',
+                 'mop-b', 'mop-max', 'mop-min',
+                 'mopno-b-min', 'mopno-max-min', 'mopno-min-min']
+
+
+    df_dr = df.pivot(
+        index="Bom",
+        columns="Algorithm",
+        values="Makespan"
+    )
+    algo_df = df_dr[algo_cols].replace(-1, np.inf)
+    df_dr["dr_min"] = algo_df.min(axis=1)
+    df_dr["dr_best_algorithms"] = algo_df.apply(
+        lambda row: ", ".join(row.index[row == row.min()]),
+        axis=1
+    )
+
+    df_sa = pd.read_csv(f"/{path_drsa}/{dataset_name}-sa-ei.csv")
+    df_sa["Algorithm"] = df_sa["Algorithm"].replace('SAL-Ei-LM', 'sa')
+
+    print(df_sa)
+
+    common = df_sa
+
+    algs = ["sa"]
+    for alg_name, model in variant_model.values():
+        print("--",alg_name, model)
+        df_best, df_ass, df_ass_inst = load_model(alg_name, model, path_gp, seeds)
+        common = pd.concat([common, df_ass_inst, df_ass, df_best], ignore_index=True)
+        algs.extend([f"{alg_name}_ass_inst", f"{alg_name}_ass", f"{alg_name}_best"])
+
+    print(algs)
+
+    gap_min, gap_min_1000, gap_min_500 = {}, {}, {}
+    gap_avg, gap_avg_1000, gap_avg_500 = {}, {}, {}
+    for alg in algs:
+        gap_min[alg], gap_min_1000[alg], gap_min_500[alg] = [], [], []
+        gap_avg[alg], gap_avg_1000[alg], gap_avg_500[alg] = [], [], []
+
+    result_wilcoxon = {}
+    for alg1 in algs:
+        for alg2 in algs:
+            if alg1 != alg2:
+                result_wilcoxon[f"{alg1} {alg2}"] = {'ties': 0, 'win': 0, 'lose': 0}
+    print(common.shape)
+    bonferroni_constant = 0.05 / (len(result_wilcoxon)/2)  # Bonferroni constant
+
+    print(df_dr.columns)
+
+    for instance in common['Bom'].unique():
+        if instance in train_set_instances:
+            continue
+
+        df_instance_filtered = common [common['Bom'] == instance]
+        insts_details = {}
+        #print('df_instance_filtered',df_instance_filtered.shape)
+        upperBound = df_dr.loc[instance, "dr_min"]
+        runtime_inst = 0
+        instance_node_no = df_instance_filtered['Nodes'].unique()[1]
+
+        for alg in algs:
+            inst_details = {}
+            inst_details['runs'] = df_instance_filtered[df_instance_filtered["Algorithm"]==alg]["Makespan"].head(10)
+            inst_details['min'] = df_instance_filtered[df_instance_filtered["Algorithm"] == alg]["Makespan"].head(10).min()
+            inst_details['mean'] = df_instance_filtered[df_instance_filtered["Algorithm"] == alg]["Makespan"].head(10).mean()
+            inst_details['std'] = df_instance_filtered[df_instance_filtered["Algorithm"] == alg]["Makespan"].head(10).std()
+            inst_details['runtime'] = df_instance_filtered[df_instance_filtered["Algorithm"] == alg]["RunTime"].head(10).sum()
+            insts_details[alg]=inst_details
+            #print(upperBound, inst_details['min'], (upperBound - inst_details['min']) / upperBound)
+            gap_min[alg].append((upperBound - inst_details['min']) / upperBound)
+            gap_avg[alg].append((upperBound - inst_details['mean']) / upperBound)
+
+            runtime_inst += inst_details['runtime']
+            if instance_node_no >= 500:
+                gap_min_500[alg].append((upperBound - inst_details['min']) / upperBound)
+                gap_avg_500[alg].append((upperBound - inst_details['mean']) / upperBound)
+
+            if instance_node_no >= 1000:
+                gap_min_1000[alg].append((upperBound - inst_details['min']) / upperBound)
+                gap_avg_1000[alg].append((upperBound - inst_details['mean']) / upperBound)
+
+        for a, b in itertools.combinations(algs, 2):
+
+            a_details = insts_details[a]
+            b_details = insts_details[b]
+            print(a,b)
+            print("A runs:", len(a_details['runs']), "B runs:", len(b_details['runs']))
+
+            d = np.around(np.array(a_details['runs']) - np.array(b_details['runs']), decimals=3)
+
+           # print("algs:",a,b)
+
+            if not np.any(d):
+                result_wilcoxon[a+" "+b]['ties'] += 1
+                result_wilcoxon[b+" "+a]['ties'] += 1
+            else:
+                r = wilcoxon(d)
+                #print(instance, r,d)
+                if r.pvalue < bonferroni_constant:
+                    if np.array(a_details['runs']).mean() < np.array(b_details['runs']).mean():
+                        result_wilcoxon[a+" "+b]['win'] += 1
+                        result_wilcoxon[b+" "+a]['lose'] += 1
+                    else:
+                        result_wilcoxon[a+" "+b]['lose'] += 1
+                        result_wilcoxon[b+" "+a]['win'] += 1
+                else:
+                    result_wilcoxon[a + " "+b]['ties'] += 1
+                    result_wilcoxon[b + " "+a]['ties'] += 1
+
+    for k,v in result_wilcoxon.items():
+        #print(k,";",e['win'],";",e['lose'],";",e['ties'])
+        print(k,";",f"({v['win']},{v['ties']},{v['lose']})")
+
+    print("len(common['Bom'].unique())", len(common['Bom'].unique()))
+    for alg in algs:
+        print(alg, f"gap_min;  {100*average(gap_min[alg]):.2f}")
+        print(alg, f"gap_avg;  {100*average(gap_avg[alg]):.2f} \pm {100 * stdev(gap_avg[alg]):.2f}")
+
+    print("inst_no_500", len(gap_min_500['sa']))
+    if len(gap_min_500['sa']) > 0:
+        for alg in algs:
+            print(gap_min_500[alg])
+            print(alg, f"gap_min;  {100 * average(gap_min_500[alg]):.2f}")
+            print(alg, f"gap_avg;  {100 * average(gap_avg_500[alg]):.2f} \pm {100 * stdev(gap_avg_500[alg]):.2f}")
+    else:
+        print("No instance with more than 500 nodes")
+
+    print("inst_no_1000", len(gap_min_1000['sa']))
+    if len(gap_min_1000['sa']) > 0:
+        for alg in algs:
+            print(alg, f"gap_min;  {100 * average(gap_min_1000[alg]):.2f}")
+            print(alg, f"gap_avg;  {100 * average(gap_avg_1000[alg]):.2f} \pm {100 * stdev(gap_avg_1000[alg]):.2f}")
+    else:
+        print("No instance with more than 500 nodes")
+
+
+models = {"models-asptrain-large": ("gp_2t", "models-asptrain-large"),
+         "train_using_scaled_terminals": ("gp_2t_s", "train_using_scaled_terminals")}
+dataset = datasets['vdeep-test']
+sign_test_v2(dataset[0], models,
+          f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[1]}",
+          f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[2]}",
+          [0, 200, 400, 600, 800, 1000, 1500, 2000, 2500, 3000])
+
+#ds-23, 1t-122
+
+# sign_test(dataset[0],"models-asptrain-large",
+#              f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[1]}",
+#              f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[2]}",
+#              [0,200,400,600,800,1000,1500,2000,2500,3000])
 

@@ -29,8 +29,8 @@ import PIL.Image
 
 # Constants
 LOG_MODE_DEFAULT: int = 0
-WANDB_PROJECT: str = 'project-1'
-WANDB_ENTITY: str = 'scheduling-sandbox-1'
+WANDB_PROJECT: str = 'ppo-gnn'
+WANDB_ENTITY: str = 'flavia-micota-west-university-of-timi-oara'
 WANDB_DIRECTORY: Path = Path(__file__).parent.parent.parent / 'data'
 WANDB_TABLE_COLUMNS: List[str] = ["Agent", "Reward", "Makespan", "Tardiness", "Ganttchart"]
 WANDB_FINAL_EVALUATION_TABLE_COLUMNS: List[str] = ['Agent', 'Mean Reward', 'Mean Tardiness', 'Tardiness Max',

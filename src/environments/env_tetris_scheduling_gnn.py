@@ -152,7 +152,7 @@ class EnvGNN(Env):
                         aux_list_op_mach_processing_times.append(task.execution_times_setup[machine])
                         # 2. Ratio of p_{ik} to the maximum processing time of p_{il}  l=1,M_i  (M_i= total number of machines on which op i can be executed)
                         # Compute the ratio of the processing time on the current machine to the maximum processing time
-                        ratio = (task.execution_times_setup[machine]) / task.max_execution_times_setup
+                        ratio = (task.execution_times_setup[machine]) / task.max_execution_times_setup if task.max_execution_times_setup > 0 else 0
                         aux_list_op_mach_processing_time_ratios_b.append(ratio)
                         # 3. Ratio of p_{ik} to the maximum processing time of p_{lk}  l=1,N _k (N_k= total number of operations that can be executed on machine k)
                         max_processing_times_per_machine[machine] = max(max_processing_times_per_machine[machine], task.execution_times_setup[machine])
@@ -190,7 +190,7 @@ class EnvGNN(Env):
                 for machine in range(len(task.machines)):
                     if task.machines[machine] == 1:
                         # 3. Ratio of p_{ik} to the maximum processing time of p_{lk}  l=1,N _k (N_k= total number of operations that can be executed on machine k)
-                        ratio = (task.execution_times_setup[machine]) / max_processing_times_per_machine[machine]
+                        ratio = (task.execution_times_setup[machine]) / max_processing_times_per_machine[machine] if max_processing_times_per_machine[machine] > 0 else 0
                         aux_list_op_mach_processing_time_ratios_a.append(ratio)
 
         # Machines features
@@ -229,10 +229,6 @@ class EnvGNN(Env):
         return self.heteroData.metadata()
 
     def reset (self):
-
-
-        #FM: aici ar trebui implementat ca o lista circulara ca sa pot parcurge setul de mai multe ori
-
         self.runs += 1
 
         # reset episode counters and infos
@@ -248,8 +244,9 @@ class EnvGNN(Env):
             self.episodes_makespans, self.episodes_rewards, self.episodes_tardinesses = ([], [], [])
             self.iterations_over_data += 1
 
-        # load new instance every run
+        # load new instance every run - circular loop through instances
         self.data_idx = self.runs % len(self.data)
+        print("NEW instance", self.data_idx)
 
         #FM: nu cred ca sunt folosit
         self.num_jobs, self.num_tasks, self.max_runtime, self.max_deadline, self.max_sum_runtime_setup_pair = self.get_instance_info(self.data_idx)
@@ -303,8 +300,16 @@ class EnvGNN(Env):
         """
         if self.reward_strategy == 'dense_makespan_reward':
             # dense reward for makespan optimization according to https://arxiv.org/pdf/2010.12367.pdf
-            reward = self.makespan - self.get_makespan(use_letsa)
-            self.makespan = self.get_makespan(use_letsa)
+            letsa_makespan = self.get_makespan(use_letsa) #use letsa cred ca calculeaza ce e cu letasa
+            reward = self.makespan - letsa_makespan
+
+            print("reward", reward, "rewards scaled", reward * self.reward_scale, "makespan", self.makespan,
+                  "letsa-makespan", letsa_makespan)
+
+            #?!makespanuri foarte diferite poate merge relative makespan?!!!!
+            #reward = (self.makespan - self.get_makespan(use_letsa)) / self.get_makespan(use_letsa)
+            self.makespan = letsa_makespan
+
         elif self.reward_strategy == 'sparse_makespan_reward':
             reward = self.sparse_makespan_reward(use_letsa)
         elif self.reward_strategy == 'mr2_reward':
@@ -394,6 +399,7 @@ class EnvGNN(Env):
             done = self.check_done()
 
             if done:
+                print("toate operatiile au fost planificate")
                 total_reward = self.compute_reward() / self.reward_normalization_factor
                 self.episodes_makespans.append(self.makespan)
                 infos = {'mask': [] }
@@ -467,7 +473,7 @@ class EnvGNN(Env):
                 if not task.done:
                     for machine in range(len(task.machines)):
                         if task.machines[machine] == 1:
-                            ratio = (task.execution_times_setup[machine]) / max_processing_times_per_machine[machine]
+                            ratio = (task.execution_times_setup[machine]) / max_processing_times_per_machine[machine] if max_processing_times_per_machine[machine]>0 else 0
                             aux_list_op_mach_processing_time_ratios_a.append(ratio)
 
             for i in range(self.state['operation', 'exec', 'machine'].edge_attr.shape[0]):
@@ -477,6 +483,7 @@ class EnvGNN(Env):
 
 
             self.calculate_mask()
+            print("reward pe step...")
             total_reward = self.compute_reward() / self.reward_normalization_factor
             infos = {'mask': self.state['machine', 'exec', 'operation'].mask}
             return self.state, total_reward, done, infos
@@ -494,7 +501,7 @@ class EnvGNN(Env):
                 else:
                     #  LETSA specific
                     original_completion_time = kwargs['completion_time']
-                    machine_id, start_time, end_time, index = choose_machine_using_completion_time(selected_task, self.machines, self.tasks, original_completion_time)
+                    machine_id, start_time, end_time, index = self.choose_machine_using_completion_time(selected_task, self.machines, self.tasks, original_completion_time)
                     #  job = 0 since we only have one job
                     self.execute_action_with_given_interval(0, selected_task, machine_id, start_time, end_time, index)
 
@@ -577,7 +584,3 @@ class EnvGNN(Env):
         if (state[('machine', 'exec', 'operation')].edge_attr.shape[0] > 0):  # FM-de ce
             state[('machine', 'exec', 'operation')].edge_attr = (2*(state[('machine', 'exec', 'operation')].edge_attr -  state[('machine', 'exec', 'operation')].edge_attr.min())/(state[('machine', 'exec', 'operation')].edge_attr.max() - state['machine', 'exec', 'operation'].edge_attr.min() + 1e-7 )-1).float()
         return state
-
-
-
-

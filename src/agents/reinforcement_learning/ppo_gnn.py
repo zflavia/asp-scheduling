@@ -227,7 +227,7 @@ class PPOGNN:
         self.n_epochs = config.get('n_epochs', 0.5)
 
         self.update_strategy = config.get('update_strategy', 'buffer_size')
-        self.total_instances = config.get('total_instances', 1000)
+        self.total_instances = config.get('total_instances', 1000) #?! de ce nu o iau din train dataset size?
         self.total_timesteps = config.get('total_timesteps',  3000000)
         self.rollout_episodes = config.get('rollout_episodes', 5)
         self.rollout_steps = config.get('rollout_steps', 2048)
@@ -332,6 +332,18 @@ class PPOGNN:
 
         all_losses = 0
         all_losses_cri = 0
+
+        sum_policy_loss = 0.0
+        sum_value_loss = 0.0
+        sum_entropy = 0.0
+        sum_approx_kl = 0.0
+        sum_clip_frac = 0.0
+        sum_adv_mean = 0.0
+        sum_adv_std = 0.0
+        sum_ratio_mean = 0.0
+        sum_ratio_std = 0.0
+        count_batches = 0
+
         # Optimize policy for N epochs - Face mai multe treceri (epochs) peste aceleași date
         for epoch in range(self.n_epochs):
 
@@ -347,7 +359,15 @@ class PPOGNN:
 
                 #Reevaluarea politicii și a criticului
                 logprobs, state_values, dist_entropy = self.policy.evaluate(batch, old_actions) #FM-roxana
-                state_values = torch.squeeze(state_values)
+
+                #era la roxana state_values = torch.squeeze(state_values)
+                # ---- shape safety ----
+                logprobs = logprobs.view(-1)
+                state_values = state_values.view(-1)
+                dist_entropy = dist_entropy.view(-1)
+                rewards = rewards.view(-1)
+                old_logprobs = old_logprobs.view(-1)
+
 
                 #Calculul raportului PPO și al avantajelor
                 ## Finding the ratio (pi_theta / pi_theta__old)
@@ -355,11 +375,37 @@ class PPOGNN:
                 ## Finding Surrogate Loss
                 advantages = rewards - state_values.detach()
 
+                adv_mean = advantages.mean()
+                adv_std = advantages.std(unbiased=False)
+
                 #Critic loss + Surrogate loss pentru actor (PPO clip)
+                #print("state_values shape", state_values.shape, "rewards.shape", rewards.shape, "MseLoss", self.MseLoss(state_values, rewards))
                 all_losses_cri += 0.5*self.MseLoss(state_values, rewards).mean()
                 surr1 = ratios * advantages
                 surr2 = torch.clamp(ratios, 1-self.clip_range, 1+self.clip_range) * advantages
                 # final loss of clipped objective PPO
+
+                policy_loss = -torch.min(surr1, surr2).mean()
+                value_loss = self.MseLoss(state_values, rewards)  # deja scalar
+                entropy = dist_entropy.mean()
+
+                approx_kl = (old_logprobs.detach() - logprobs).mean()
+                clip_frac = (torch.abs(ratios - 1.0) > self.clip_range).float().mean()
+
+                loss_1 = policy_loss + 0.5 * value_loss - self.ent_coef * entropy #varianta sugerata de chat gpt cand am intrebat ce alte info sa mai fac log
+
+                sum_policy_loss += float(policy_loss)
+                sum_value_loss += float(value_loss)
+                sum_entropy += float(entropy)
+                sum_approx_kl += float(approx_kl)
+                sum_clip_frac += float(clip_frac)
+                sum_adv_mean += float(adv_mean)
+                sum_adv_std += float(adv_std)
+                sum_ratio_mean += float(ratios.mean())
+                sum_ratio_std += float(ratios.std(unbiased=False))
+                count_batches += 1
+
+
                 loss = -torch.min(surr1, surr2) + 0.5*self.MseLoss(state_values, rewards) - 0.01*dist_entropy
 
                 # take gradient step
@@ -381,14 +427,24 @@ class PPOGNN:
 
 
         print('agent_training/loss', float(all_losses))
-        print( 'agent_training/actor_loss', float(all_losses)/(i*self.n_epochs))
+        print('agent_training/actor_loss', float(all_losses)/(i*self.n_epochs))
         print('agent_training/critic_loss', float(all_losses_cri)/(i*self.n_epochs))
+        den = max(1, count_batches)
         self.logger.record(
             {
                 'agent_training/n_updates': self.n_updates,
                 'agent_training/loss': float(all_losses),
                 'agent_training/actor_loss': float(all_losses)/(i*self.n_epochs),
-                'agent_training/critic_loss': float(all_losses_cri)/(i*self.n_epochs)
+                'agent_training/critic_loss': float(all_losses_cri)/(i*self.n_epochs),
+                'ppo/policy_loss': sum_policy_loss / den,
+                'ppo/value_loss': sum_value_loss / den,
+                'ppo/entropy': sum_entropy / den,
+                'ppo/approx_kl': sum_approx_kl / den,
+                'ppo/clip_frac': sum_clip_frac / den,
+                'ppo/adv_mean': sum_adv_mean / den,
+                'ppo/adv_std': sum_adv_std / den,
+                'ppo/ratio_mean': sum_ratio_mean / den,
+                'ppo/ratio_std': sum_ratio_std / den,
             }
         )
         self.logger.dump()
@@ -404,7 +460,7 @@ class PPOGNN:
 
         """
         # torch.save(self.policy_old.state_dict(), checkpoint_path)
-        print("save() function called {file}.pkl")
+        print(f"save() function called {file}.pkl")
 
         params_dict = self.__dict__.copy()
         del params_dict['logger']
@@ -435,26 +491,12 @@ class PPOGNN:
         with open(f"{file}.pkl", "rb") as handle:
             data = pickle.load(handle)
 
-        print("PPOGNN-load() data")
-        #
         env = data["params"]["env"]
-        print("PPOGNN-load() 1before model update")
-        print("PPOGNN-load()",data.keys(), env.tasks)
-
-
-        for task in env.tasks:
-            print("load() task", task.task_id, task.done)
-
-
-        print("PPOGNN-load()", config)
-
 
         metadata = env.get_metadata()
-        print("PPOGNN-load() 2before model update")
 
         # create PPO object, commit necessary parameters. Update remaining parameters
         model = cls(env=env, config=config, logger=logger, metadata=metadata)
-        print("PPOGNN-load() before model update")
         model.__dict__.update(data["params"])
 
         print("PPOGNN-load() model", model)
@@ -462,7 +504,7 @@ class PPOGNN:
         model.policy_old.load_state_dict(data["policy_old"])
         model.policy.load_state_dict(data["policy_old"])
 
-        return model, _
+        return model, None
 
 
     def learn(self, total_instances: int, total_timesteps: int, intermediate_test=None) -> None:
@@ -494,9 +536,9 @@ class PPOGNN:
                 #Stocarea tranziției în rollout buffer
                 self.rollout_buffer.store_memory(initial_state, action, prob, reward, done)#FM - altfel face copie dupa prima iteratie si nu e ok, se modifica ceva in nr de muchii
 
-                # #call intermediate_test on_step - da eroare de verificat ce nu merge
-                # if intermediate_test:
-                #     intermediate_test.on_step(self.num_timesteps, episode, self)
+                #call intermediate_test on_step -aici se face salvarea modelului
+                if intermediate_test:
+                    intermediate_test.on_step(self.num_timesteps, episode, self)
 
                 # break learn if total_timesteps are reached
                 if self.num_timesteps >= total_timesteps:
@@ -585,3 +627,4 @@ class PPOGNN:
         )
         print("...train() function was called", enter_train, 'times and select action ', self.num_timesteps, 'times')
         self.logger.dump()
+        return mean_training_makespan

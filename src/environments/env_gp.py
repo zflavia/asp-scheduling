@@ -109,6 +109,7 @@ class EnvGP():
             return self.get_next_action_1tree(priority_func)
         elif individual_trees_no == 2:
             return self.get_next_action_2trees(priority_func)
+            #return self.get_next_action_2trees_normalized_features(priority_func)
         return None
 
     def get_next_action_2trees(self, priority_func: Any):
@@ -120,6 +121,8 @@ class EnvGP():
         ready_operations = []
         max_processing_times_per_machine, no_of_operations_executable_on_machine = self.get_heppler_informations()
         makespan = self.get_makespan()
+
+        normalisation_dict={}
 
         for op_idx, redy_op in enumerate(self.operations_redy):
             if redy_op == 1:
@@ -237,6 +240,199 @@ class EnvGP():
 
         return (selected_operation_idx, selected_machine_idx)
 
+
+    def max_min_scale_of_feature_values(self, features: list[str],
+                                        data: dict[int, dict[str, float]]):
+        mins = {f: float("inf") for f in features}
+        maxs = {f: float("-inf") for f in features}
+
+        for row in data.values():
+            for f in features:
+                x = row[f]
+                if x < mins[f]: mins[f] = x
+                if x > maxs[f]: maxs[f] = x
+
+        for row in data.values():
+            for f in features:
+                lo, hi = mins[f], maxs[f]
+                row[f] = (row[f] - lo) / (hi - lo) if hi > lo else 0.0
+
+    def get_next_action_2trees_normalized_features(self, priority_func: Any):
+        '''
+        Selects the next pair (operation, machine) to be scheduled
+        :param priority_func: a GP priority rule or rules that selects a pair (op, machine)
+        :return:
+        '''
+        ready_operations = []
+        #max_processing_times_per_machine, no_of_operations_executable_on_machine = self.get_heppler_informations()
+        makespan = self.get_makespan()
+
+        normalisation_dict = {}
+        #compute and store features for all available operations
+        for op_idx, redy_op in enumerate(self.operations_redy):
+            if redy_op == 1:
+                operation = self.operations[op_idx]
+                operation_features_dict ={}
+
+                # operations features
+                # 2. O_MeanPT- Mean processing time: Estimates operation duration.
+                feat_op_mean_time = operation.average_execution_times_setup
+                operation_features_dict['O_MeanPT'] = feat_op_mean_time
+
+                # 3. O_MinPT- Minimum processing time: Highlights the quickest possible execution time.
+                feat_op_min_time = operation.min_execution_times_setup
+                operation_features_dict['O_MinPT'] = feat_op_min_time
+
+                # 4. O_Flex - Ratio of machines that are eligible for Oij to total machine number
+                no_eligible_machines = operation.machines.count(1)
+                feat_op_flexibility_factor = float(no_eligible_machines) / self.no_machines
+                operation_features_dict['O_Flex'] = feat_op_flexibility_factor
+
+                # 5.O_Path_OpNo
+                feat_op_path_opNO = operation.no_remaining_operations
+                operation_features_dict['O_Path_OpNo'] = feat_op_path_opNO
+
+                # 6.O_Path_minLen
+                feat_op_path_minLen = operation.remaining_work
+                operation_features_dict['O_Path_minLen'] = feat_op_path_minLen
+
+                # 7.O_Ready
+                feat_op_ready = makespan - operation.release_time
+                operation_features_dict['O_Ready'] = feat_op_ready
+
+                normalisation_dict[op_idx] = operation_features_dict
+
+        # scale features values in [0,1]
+        features = ['O_MeanPT', 'O_MinPT', 'O_Path_OpNo', 'O_Path_minLen', 'O_Ready']
+        self.max_min_scale_of_feature_values(features, normalisation_dict)
+
+        #evaluate tree with scaled values
+        for op_idx, redy_op in enumerate(self.operations_redy):
+            if redy_op == 1:
+                score = 0
+                l = []
+                op_features = normalisation_dict[op_idx]
+                if self.evaluation_type is GPBase.RuleEvaluationType.ASSEMBLE:
+                    for pf in priority_func:
+                        _pf = pf[0]
+                        a = _pf(op_features['O_MeanPT'], op_features['O_MinPT'],
+                                op_features['O_Flex'],
+                                op_features['O_Path_OpNo'], op_features['O_Path_minLen'],
+                                op_features['O_Ready'])
+                        # a = _pf(feat_op_mean_time, feat_op_min_time, feat_op_flexibility_factor,
+                        #         feat_op_path_opNO, feat_op_path_minLen, feat_op_ready)
+                        l.append(a)
+                        score += a
+                    score /= len(priority_func)
+                elif (self.evaluation_type is GPBase.RuleEvaluationType.BEST or
+                      self.evaluation_type is GPBase.RuleEvaluationType.ASSEMBLE_INSTANCES):
+                    _pf = priority_func[0]
+                    score = _pf(op_features['O_MeanPT'], op_features['O_MinPT'],
+                                op_features['O_Flex'],
+                                op_features['O_Path_OpNo'], op_features['O_Path_minLen'],
+                                op_features['O_Ready'])
+
+                ready_operations.append((score, op_idx))
+        ready_operations.sort(reverse=True)  # higher score first
+
+        _, selected_operation_idx = ready_operations.pop(0)
+        selected_operation = self.operations[selected_operation_idx]
+
+        ready_machines = []
+        #compute and store features for all available machines
+        normalisation_dict = {}
+        for m_idx, eligible_machine in enumerate(selected_operation.machines):
+            if eligible_machine == 1:
+                processing_time = selected_operation.execution_times_setup[m_idx]
+                machine_feat_dict = {}
+
+                # Features on operation-machine edges
+                # 1. E_PT - Processing time p_{ik}  of operation i on machine k
+                feat_edge_processing_time = processing_time
+                machine_feat_dict['E_PT'] = feat_edge_processing_time
+
+                # Machines features
+                # 1. M_RT - Last operation completion time t_{last}: Determines machine availability.
+                feat_machine_ready_time = self.machine_ready_time[m_idx]
+                machine_feat_dict['M_RT'] = feat_machine_ready_time
+
+                # 2. M_OP - Number of operations (unscheduled)  that can be executed on M / total number of operations (unscheduled)
+                feat_machine_operation_proportion = self.machine_operation_no[
+                                                        m_idx] / self.no_uncheduled_operations if self.no_uncheduled_operations != 0 else 0
+                machine_feat_dict['M_OP'] = feat_machine_operation_proportion
+
+                # 3. M_UT - Utilization percentage: T_{used}/t_{last}: Indicates machine efficiency.
+                feat_machine_utilization_percentage = self.machines[m_idx].get_total_occupancy_duration() / \
+                                                      makespan if makespan != 0 else 0
+                machine_feat_dict['M_UT'] = feat_machine_utilization_percentage
+
+                # 4. M_QL
+                feat_machine_queue_length = self.machine_queue_op_no[m_idx]
+                machine_feat_dict['M_QL'] = feat_machine_queue_length
+
+                # 5. M_QD
+                feat_machine_queue_duration = self.machine_queue_op_duration[m_idx]
+                machine_feat_dict['M_QD'] = feat_machine_queue_duration
+
+                # M_CT_A
+                feat_machine_compleation_time_append = max(selected_operation.release_time,
+                                                           self.machine_ready_time[m_idx]) + processing_time
+                machine_feat_dict['M_CT_A'] = feat_machine_compleation_time_append
+
+                # M_CT_B
+                index, start_time, end_time = backward_planning_completion_time(selected_operation,
+                                                                                m_idx,
+                                                                                self.machines)
+                feat_machine_compleation_time_backward = end_time
+                machine_feat_dict['M_CT_B'] = feat_machine_compleation_time_backward
+
+                normalisation_dict[m_idx] = machine_feat_dict
+
+        features = ['E_PT', 'M_RT', 'M_QL', 'M_QD', 'M_CT_A', 'M_CT_B']
+        self.max_min_scale_of_feature_values(features, normalisation_dict)
+
+        for m_idx, eligible_machine in enumerate(selected_operation.machines):
+            if eligible_machine == 1:
+                machine_features = normalisation_dict[m_idx]
+                score = 0
+                l = []
+                if self.evaluation_type is GPBase.RuleEvaluationType.ASSEMBLE:
+                    for pf in priority_func:
+                        _pf = pf[1]
+                        a = _pf(machine_features['E_PT'],#feat_edge_processing_time,
+                                machine_features['M_RT'],#feat_machine_ready_time,
+                                machine_features['M_OP'],#feat_machine_operation_proportion,
+                                machine_features['M_UT'],#feat_machine_utilization_percentage,
+                                machine_features['M_QL'],#feat_machine_queue_length,
+                                machine_features['M_QD'],#feat_machine_queue_duration,
+                                machine_features['M_CT_A'],#feat_machine_compleation_time_append,
+                                machine_features['M_CT_B'],#feat_machine_compleation_time_backward
+                                )
+                        l.append(a)
+                        score += a
+                    score /= len(priority_func)
+                elif (self.evaluation_type is GPBase.RuleEvaluationType.BEST or
+                      self.evaluation_type is GPBase.RuleEvaluationType.ASSEMBLE_INSTANCES):
+                    _pf = priority_func[1]
+                    score = _pf(machine_features['E_PT'],#feat_edge_processing_time,
+                                machine_features['M_RT'],#feat_machine_ready_time,
+                                machine_features['M_OP'],#feat_machine_operation_proportion,
+                                machine_features['M_UT'],#feat_machine_utilization_percentage,
+                                machine_features['M_QL'],#feat_machine_queue_length,
+                                machine_features['M_QD'],#feat_machine_queue_duration,
+                                machine_features['M_CT_A'],#feat_machine_compleation_time_append,
+                                machine_features['M_CT_B'],#feat_machine_compleation_time_backward
+                                )
+
+                ready_machines.append((score, m_idx))
+
+        # select pair
+        ready_machines.sort(reverse=True)  # higher score first
+
+        _, selected_machine_idx = ready_machines.pop(0)
+        self.action_history.append((selected_operation_idx, selected_machine_idx))
+
+        return (selected_operation_idx, selected_machine_idx)
 
     def get_next_action_1tree(self, priority_func: Any, individual_trees_no=1):
         '''

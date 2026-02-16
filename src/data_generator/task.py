@@ -109,6 +109,11 @@ class Task:
         self.remaining_work = 0
         self.release_time = 0 if len(self.children) == 0 else None
 
+        #for storing information regarding the schedule for a dispatch rule (DR) - need to scale makespan for rewards
+        self.dr_start_time = 0 #task start time
+        self.dr_end_time = 0 #task end time
+        self.dr_makespan = 0 #makespan at the moment when the task is scheduled by the DR
+
 
     def recalculate_execution_times_setup(self):
         self.max_execution_times_setup = 0
