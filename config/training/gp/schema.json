@@ -95,6 +95,12 @@
       "type": "integer",
       "minimum": 0,
       "description": "Not used, kept for compatibility with other agents."
+    },
+    "save_intermediary_steps_frequency": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Step used to acquisition details regarding terminal values during training process."
     }
+
   }
 }

@@ -15,6 +15,7 @@ from src.utils.file_handler.model_handler import ModelHandler
 from src.utils.logger import Logger
 from src.agents.gp.simpleTree import infix_str
 from src.agents.gp.util import protected_div, protected_if, generate_random_value_for_erc, lt
+from src.agents.gp.simpleTree import  simplify_individual
 
 class OperatorSpec:
     def __init__(self, name : AnyStr, optype : Literal['mutation', 'crossover'], func):
@@ -98,7 +99,7 @@ class GPBase:
         Evaluate an individual
         :param individual: an individual from the population (depending on the GP type 1Tree or 2Tress)
         :param toolbox: DEAP toolbox
-        :return: the fitness value (mean makespan on all train instances)
+        :return: the fitness value (mean makespan on all train instances) and the list with all saved decision states
         """
         if individual is None:
             return (float('inf'),)
@@ -117,10 +118,14 @@ class GPBase:
         num_valid_instances_evaluated = 0
         self.env.current_instance_index = -1
 
+        #all_decision_states = []
         for inst_no in range(self.env.instances_no):
             makespan = float('inf')
             try:
                 makespan = self.env.evaluate_instance(priority_func, self.individual_trees_no)
+                 #, decision_states)
+
+                #all_decision_states.append(decision_states)
             except Exception as e_eval:
                 traceback.print_exc()
 
@@ -134,7 +139,7 @@ class GPBase:
             print("Infinity!!!!!!!!!!!!")
             return (float('inf'),)
 
-        return (total_combined_score / num_valid_instances_evaluated,)
+        return (total_combined_score / num_valid_instances_evaluated,)#, all_decision_states
 
     def configure_terminals(self):
         """
@@ -346,8 +351,14 @@ class GPBase:
 
         # evaluate initial population
         invalid_ind = [ind for ind in population if not ind.fitness.valid]
-        fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
-        for ind, fit in zip(invalid_ind, fitnesses):
+        evaluation_results = toolbox.map(toolbox.evaluate, invalid_ind)
+
+        # for ind, (fit, decision_states) in zip(invalid_ind, evaluation_results):
+        #     print(ind, fit, decision_states)
+        #     ind.fitness.values = fit
+        #     ind.decision_states = decision_states
+
+        for ind, fit in zip(invalid_ind, evaluation_results):
             ind.fitness.values = fit
 
         if halloffame is not None:
@@ -410,19 +421,30 @@ class GPBase:
                 if hasattr(child2, "fitness"):
                     if hasattr(child2.fitness, "values"):
                         del child2.fitness.values
-            #simplify population
+
+            #simplify algebraic population
             if gen % self.simplify_frequency == 0:
                 offspring = self.simplify_population(offspring, toolbox)
 
             # evaluate newly created individuals
             for i, ind in enumerate(offspring):
+                # delete previous saved decision states
+                #ind.decision_states = []
                 if not hasattr(ind, "fitness"):
                     raise TypeError(f"Invalid offspring at index {i}: type={type(ind)} value={ind}")
 
             invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-            fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
-            for ind, fit in zip(invalid_ind, fitnesses):
+            evaluation_results = toolbox.map(toolbox.evaluate, invalid_ind)
+            # for ind, (fit, decision_states) in zip(invalid_ind, evaluation_results):
+            #     ind.fitness.values = fit
+            #     ind.decision_states = decision_states
+
+            for ind, fit in zip(invalid_ind, evaluation_results):
                 ind.fitness.values = fit
+
+            # simplify behaviour population
+            # for indx, ind in enumerate(offspring):
+            #     print(f"individual {indx} saved decision states {ind.decision_states}")
 
             # ====== Update AOS information ======
             for ind in offspring:
@@ -513,6 +535,7 @@ class GPBase:
               evaluation_type is GPBase.RuleEvaluationType.ASSEMBLE_INSTANCES):
             assemble_fct = []
 
+            pset_dispatch, pset_machines = GP_Two_Trees.configure_terminals()
             for el in data['hof']:
                 #let it here to avoid recursive file inclusion
                 from src.agents.gp.gp_1tree import GP_One_Tree
@@ -521,6 +544,9 @@ class GPBase:
                 if issubclass(cls, GP_One_Tree):
                     assemble_fct.append([toolbox.compile(expr=el)])
                 elif issubclass(cls, GP_Two_Trees):
+                    el[0] = simplify_individual(el[0], pset_dispatch)
+                    el[1] = simplify_individual(el[1], pset_machines)
+
                     assemble_fct.append([toolbox.compile_disp(expr=el[0],),
                                          toolbox.compile_route(expr=el[1])])
             return assemble_fct, data['hof']

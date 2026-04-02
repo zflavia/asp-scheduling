@@ -14,7 +14,7 @@ class EnvGP():
         :param config: configuration dictionary
         :param data: a list with the test instances
         :param binary_features: not used
-        :param from_test: boolean used to differentiate if it called from train aor test process
+        :param from_test: boolean used to differentiate if it called from train or test process
         """
         self.seed = config.get('seed', None)
         self.np = config.get('no_parallel_processes', 1)
@@ -36,6 +36,17 @@ class EnvGP():
         self.done = False #the instance was scheduled
         self.tardiness = [0]
         self.action_history = []
+
+        #decision situations
+        self.decision_info_minimum_operations = config.get('decision_info_minimum_operations', None)
+        self.decision_info_minimum_machines = config.get('decision_info_minimum_machines', None)
+        self.decision_info_minimum_operation_machine_pair = config.get('decision_info_minimum_operation_machine_pair', None)
+
+        # print('decision_info_minimum_operations', self.decision_info_minimum_operations)
+        # print('decision_info_minimum_machines', self.decision_info_minimum_machines)
+
+        # self.collected_decision_states_operations = []
+        # self.collected_decision_states_machines = []
 
     def get_next_instance(self):
 
@@ -122,7 +133,11 @@ class EnvGP():
         max_processing_times_per_machine, no_of_operations_executable_on_machine = self.get_heppler_informations()
         makespan = self.get_makespan()
 
-        normalisation_dict={}
+        normalisation_dict = {}
+
+        operations_state_list = []
+        add_operation_state = True if (self.decision_info_minimum_operations is not None and
+                len(self.operations_redy) > self.decision_info_minimum_operations) else False
 
         for op_idx, redy_op in enumerate(self.operations_redy):
             if redy_op == 1:
@@ -148,6 +163,18 @@ class EnvGP():
                 # 7.O_Ready
                 feat_op_ready = makespan - operation.release_time
 
+                if add_operation_state:
+                    state = {
+                         "op_ind" : op_idx,
+                         "O_MeanPT" : feat_op_mean_time,
+                         "O_MinPT": feat_op_min_time,
+                         "O_Flex" : feat_op_flexibility_factor,
+                         "O_Path_OpNo" : feat_op_path_opNO,
+                         "O_Path_minLen" : feat_op_path_minLen,
+                         "O_Ready" : feat_op_ready
+                     }
+                    operations_state_list.append(state)
+
                 score = 0
                 l = []
                 if self.evaluation_type is GPBase.RuleEvaluationType.ASSEMBLE:
@@ -171,6 +198,10 @@ class EnvGP():
         selected_operation = self.operations[selected_operation_idx]
 
         ready_machines = []
+        machines_state_list =[]
+        add_machine_state = True if (self.decision_info_minimum_operations is not None and
+                                       len(self.operations_redy) > self.decision_info_minimum_operations) else False
+
         for m_idx, eligible_machine in enumerate(selected_operation.machines):
             if eligible_machine == 1:
                 processing_time = selected_operation.execution_times_setup[m_idx]
@@ -196,10 +227,21 @@ class EnvGP():
                 feat_machine_compleation_time_append = max(selected_operation.release_time, self.machine_ready_time[m_idx]) + processing_time
                 # M_CT_B
                 index, start_time, end_time = backward_planning_completion_time(selected_operation,
-                                                                                               m_idx,
-                                                                                               self.machines)
-
+                                                                                               m_idx, self.machines)
                 feat_machine_compleation_time_backward = end_time
+
+                if add_machine_state:
+                    state = {
+                        "m_ind": m_idx,
+                        "E_PT": feat_edge_processing_time,
+                        "M_RT": feat_machine_ready_time,
+                        "M_OP": feat_machine_operation_proportion,
+                        "M_UT": feat_machine_utilization_percentage,
+                        "M_QL": feat_machine_queue_length,
+                        "M_CT_A": feat_machine_compleation_time_append,
+                        "M_CT_B": feat_machine_compleation_time_backward
+                    }
+                    machines_state_list.append(state)
 
                 score = 0
                 l = []
@@ -238,8 +280,7 @@ class EnvGP():
         _, selected_machine_idx = ready_machines.pop(0)
         self.action_history.append((selected_operation_idx, selected_machine_idx))
 
-        return (selected_operation_idx, selected_machine_idx)
-
+        return (selected_operation_idx, selected_machine_idx, (operations_state_list, machines_state_list))
 
     def max_min_scale_of_feature_values(self, features: list[str],
                                         data: dict[int, dict[str, float]]):
@@ -565,12 +606,17 @@ class EnvGP():
     def step(self, action, **args):
         '''
         Shedule operation on machine and updates the internal information
-        :param action: contains the selected pair (operation, amchine)
+        :param action: contains the selected pair (operation, machine) and the decisions information for this step
         :param args:
         :return:
         '''
         selected_operation_idx = action[0]
         selected_machine_idx = action[1]
+        # decision_states = action[2]
+        # if len(decision_states[0]) > 0:
+        #     self.collected_decision_states_operations.append(decision_states[0])
+        # if len(decision_states[1]) > 0:
+        #     self.collected_decision_states_machines.append(decision_states[1])
 
         # update operations structure
         selected_operation = self.operations[selected_operation_idx]
@@ -617,7 +663,7 @@ class EnvGP():
 
         for m_idx, eligible_machine in enumerate(selected_operation.machines):
             if eligible_machine:
-                self.machine_operation_no[m_idx] -= 1  # eliminate opreation from the number of operations on machine
+                self.machine_operation_no[m_idx] -= 1  # eliminate operation from the number of operations on machine
                 self.machine_queue_op_no[m_idx] -= 1
                 self.machine_queue_op_duration[m_idx] -= selected_operation.execution_times_setup[m_idx]
                 if self.machine_operation_no[m_idx] == 0:
@@ -638,7 +684,7 @@ class EnvGP():
                 action = self.get_next_action(priority_funcs, get_next_action)
                 self.step(action)
 
-            return self.get_makespan() #makespan
+            return self.get_makespan()#, (self.collected_decision_states_operations, self.collected_decision_states_machines) #makespan
 
     def get_makespan(self, *args):
         return max(self.machine_ready_time)  # makespan

@@ -232,7 +232,7 @@ def test_model(env_config: Dict, data: List[List[Task]], logger: Logger, plot: b
         # environment, _ = EnvironmentLoader.load(env_config, data=[data[test_i]], binary_features=binary_features,
         #                                         from_test=True)
         run_episode(environment, model, heuristic_id, evaluation_handler, env_config['sp_type'], gp_individual_trees_no)
-        print("evaluation_handler",evaluation_handler)
+
         # schedule_info = ''
         # for task in environment.tasks:
             # schedule_info += task.str_schedule_info_simple() + '\n'

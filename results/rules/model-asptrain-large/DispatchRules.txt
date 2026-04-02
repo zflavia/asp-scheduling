@@ -48,7 +48,3 @@
     "-((max(M_CT_B, E_PT)) + M_CT_A - M_QL + M_OP - (M_UT - M_QL) + (min(E_PT + E_PT, M_CT_A + M_OP)) + (min(E_PT + E_PT, M_CT_B - M_QL)))"
     "-(M_CT_B + M_CT_A - M_QL + M_OP - ((min(M_RT / E_PT, M_CT_A + M_OP)) - M_QL) + (min(M_CT_A * 1.64 - M_UT, min(E_PT + E_PT, M_CT_B + M_CT_A - E_PT + M_OP))) + (min(E_PT + E_PT, M_CT_B * 1.64 - M_QL)))"
     "-(M_CT_B + M_CT_A - M_QL + M_OP - ((min(M_RT / E_PT, M_CT_A + M_OP)) - M_QL) + (min(M_CT_B + M_CT_A - M_QL + M_OP - (min(E_PT, M_UT - M_QL)), min(E_PT + E_PT, M_CT_B * (M_CT_A - E_PT) + M_OP))) + (min(E_PT + E_PT, M_CT_B * 1.64 - M_QL)))"
-
-"min(M_OP, -((max(M_CT_B, M_UT)) - 2.69 + E_PT - M_QL))"
-"-(M_RT + (max(M_QL - M_UT - (M_QL - M_RT), max(M_QL * M_UT - (E_PT - M_RT), M_QL + M_CT_B))) - M_RT + M_CT_B)"
- "-((M_QL + (max(1.67, M_QL + E_PT))) * M_UT + M_CT_B + E_PT * M_UT + M_CT_B + E_PT + E_PT + E_PT)"

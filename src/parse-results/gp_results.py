@@ -1,12 +1,12 @@
 import json
-import csv
-from statistics import stdev
+from statistics import stdev, mean
 
 import numpy as np
 import pandas as pd
 import itertools
 
 from numpy.ma.extras import average
+from pandas.core.interchange.dataframe_protocol import DataFrame
 from scipy.stats import friedmanchisquare, wilcoxon
 
 
@@ -106,461 +106,272 @@ def get_gp_data(df, gp_variant, file_path, single_run=True):
 
     return df
 
-
-def load_dataset(dataset_name, model_dr, model_pair, path_drsa, path_gp, seeds, out_fine_name, load_gp_pair=False):
+def load_gp(df, file_path, useRulesAssamble=False):
     """
-
-    :param dataset_name:
-    :param model:
-    :param path_drsa:
-    :param path_gp:
-    :param seeds:
+    Loads a result file and concatenates to an existing dataframe
+    :param df: the existing dataframe
+    :param file_path: results file path
+    :param useRulesAssamble: true for option assamble-instances; false for options: best, assamble
     :return:
     """
-    df_sa = pd.read_csv(f"/{path_drsa}/{dataset_name}-sa-ei.csv")
-    df_sa = ( df_sa
-        .groupby(["Algorithm", "Bom", "Nodes"])
-        .agg(
-            makespan_mean=("Makespan", "mean"),
-            makespan_std=("Makespan", "std"),
-            runs=("Makespan", "count")
+    with open(file_path, "r", encoding="utf-8") as f:
+        json_obj = json.load(f)
+
+    if useRulesAssamble:
+        dfs = []
+        for i, json_obj in enumerate(json_obj["runs"]):
+            bom = json_obj["test-data-file-names"]
+            ms = json_obj["agent"]["makespan_tests"]
+            apply_gp_time = json_obj["agent"]["running_time"]
+
+            df_i = pd.DataFrame({
+                "Bom": bom,
+                "Makespan": ms,
+                "run": i,
+                "RunTime": apply_gp_time
+            })
+            dfs.append(df_i)
+        gp_all_df = pd.concat(dfs, ignore_index=True)
+        gp_min_df = (
+            gp_all_df
+            .groupby("Bom")
+            .agg(
+                Makespan=("Makespan", "min"),
+                RunTime=("RunTime", "sum")
+            )
+            .reset_index()
         )
-        .reset_index()
-    ).set_index("Bom")
+        _df = gp_min_df
 
-    #dispach rules
-    df = pd.read_csv(f"/{path_drsa}/{dataset_name}-dr.csv")
-
-    df_dr = df.pivot(
-        index="Bom",
-        columns="Algorithm",
-        values="Makespan"
-    )
-    df =  pd.concat([df_sa, df_dr], axis=1)
-
-    #GP
-    for seed in seeds:
-        df = get_gp_data(df, f'GP_2t_ass_inst_{seed}',
-                               f'{path_gp}/{model_dr}/result_gp_2t_assemble_inst_seed_{seed}.json',
-                         single_run=False)
-    for seed in seeds:
-        df = get_gp_data(df, f'GP_2t_ass_{seed}',
-                               f'{path_gp}/{model_dr}/result_gp_2t_assemble_seed_{seed}.json')
-
-    for seed in seeds:
-        df = get_gp_data(df, f'GP_2t_best_{seed}',
-                               f'{path_gp}/{model_dr}/result_gp_2t_best_seed_{seed}.json')
-
-    if load_gp_pair:
-        for seed in seeds:
-            df = get_gp_data(df, f'GP_pair_ass_inst_{seed}',
-                                   f'{path_gp}/{model_pair}/result_gp_pair_assemble_inst_seed_{seed}.json',
-                             single_run=False)
-        for seed in seeds:
-            df = get_gp_data(df, f'GP_pair_ass_{seed}',
-                                  f'{path_gp}/{model_pair}/result_gp_pair_assemble_seed_{seed}.json')
-
-        for seed in seeds:
-            df = get_gp_data(df, f'GP_pair_best_{seed}',
-                              f'{path_gp}/{model_pair}/result_gp_pair_best_seed_{seed}.json')
-
-    #care algoritmi ating minimul
-    df = df.rename(columns={"makespan_mean": "SA"})
-    columns_names = df.columns
-    meta_cols = ["Bom", "Algorithm", "Nodes", "makespan_std", "runs"]
-    meta_cols.extend([column for column in columns_names if column.startswith("std_")])
-    meta_cols.extend([column for column in columns_names if column.startswith("mean_")])
-    meta_cols.extend([column for column in columns_names if column.endswith("_runtime")])
-    print(meta_cols)
-    algo_cols = [c for c in df.columns if c not in meta_cols]
-    algo_df = df[algo_cols].replace(-1, np.inf)
-    df["min_makespan"] = algo_df.min(axis=1)
-    df["best_algorithms"] = algo_df.apply(
-        lambda row: ", ".join(row.index[row == row.min()]),
-        axis=1
-    )
-
-
-    algo_df = df[dr_algo_cols].replace(-1, np.inf)
-    df["dr_min"] = algo_df.min(axis=1)
-    df["dr_best_algorithms"] = algo_df.apply(
-        lambda row: ", ".join(row.index[row == row.min()]),
-        axis=1
-    )
-
-    #pe familie determin minimul
-    ass_inst_cols = [c for c in df.columns if c.startswith("GP_dr_ass_inst") and not c.endswith("_runtime")]
-    ass_cols = [c for c in df.columns if (c.startswith("GP_dr_ass") and not c.startswith("GP_dr_ass_inst")) and not c.endswith("_runtime")]
-    best_cols = [c for c in df.columns if c.startswith("GP_dr_best") and not c.endswith("_runtime")]
-    ass_inst_df =df[ass_inst_cols]
-    ass_df =df[ass_cols]
-    best_df= df[best_cols]
-
-    df["gp_dr_ass_inst"] = ass_inst_df.min(axis=1)
-    df["gp_dr_ass"] = ass_df.min(axis=1)
-    df["gp_dr_best"] = best_df.min(axis=1)
-
-
-    if load_gp_pair:
-        ass_inst_cols = [c for c in df.columns if c.startswith("GP_pair_ass_inst") and not c.endswith("runtime")]
-        ass_cols = [c for c in df.columns if (c.startswith("GP_pair_ass") and not c.startswith("GP_pair_ass_inst")) and not c.endswith("runtime")]
-        best_cols = [c for c in df.columns if c.startswith("GP_pair_best") and not c.endswith("runtime")]
-        ass_inst_df = df[ass_inst_cols]
-        ass_df = df[ass_cols]
-        best_df = df[best_cols]
-
-        df["gp_pair_ass_inst"] = ass_inst_df.min(axis=1)
-        df["gp_pair_ass"] = ass_df.min(axis=1)
-        df["gp_pair_best"] = best_df.min(axis=1)
-
-    gp_min_cols = [c for c in df.columns if (c.startswith("GP_pair") or c.startswith("GP_dr")) and not c.endswith("runtime")]
-    gp_min_df = df[gp_min_cols]
-    df["gp_min"] = gp_min_df.min(axis=1)
-
-    # pe familie determin runtime
-    ass_inst_cols_runtime = [c for c in df.columns if c.startswith("GP_dr_ass_inst") and c.endswith("runtime")]
-    ass_cols_runtime = [c for c in df.columns if
-                        (c.startswith("GP_dr_ass") and not c.startswith("GP_dr_ass_inst")) and c.endswith("runtime")]
-    best_cols_runtime = [c for c in df.columns if c.startswith("GP_dr_best") and c.endswith("runtime")]
-    ass_inst_df_runtime = df[ass_inst_cols_runtime]
-    ass_df_runtime = df[ass_cols_runtime]
-    best_df_runtime = df[best_cols_runtime]
-
-    df["gp_dr_ass_inst_runtime"] = ass_inst_df_runtime.sum(axis=1)
-    df["gp_dr_ass_runtime"] = ass_df_runtime.sum(axis=1)
-    df["gp_dr_best_runtime"] = best_df_runtime.sum(axis=1)
-    df["gp_dr_total_runtime"] = df["gp_dr_ass_inst_runtime"] + df["gp_dr_ass_runtime"] + df["gp_dr_best_runtime"]
-
-
-    if load_gp_pair:
-        ass_inst_cols_runtime = [c for c in df.columns if c.startswith("GP_pair_ass_inst") and c.endswith("runtime")]
-        ass_cols_runtime = [c for c in df.columns if
-                            (c.startswith("GP_pair_ass") and not c.startswith("GP_pair_ass_inst")) and c.endswith(
-                                "runtime")]
-        best_cols_runtime = [c for c in df.columns if c.startswith("GP_pair_best") and c.endswith("runtime")]
-        ass_inst_df_runtime = df[ass_inst_cols_runtime]
-        ass_df_runtime = df[ass_cols_runtime]
-        best_df_runtime = df[best_cols_runtime]
-
-        df["gp_pair_ass_inst_runtime"] = ass_inst_df_runtime.sum(axis=1)
-        df["gp_pair_ass_runtime"] = ass_df_runtime.sum(axis=1)
-        df["gp_pair_best_runtime"] = best_df_runtime.sum(axis=1)
-        df["gp_pair_total_runtime"] = df["gp_pair_ass_inst_runtime"] + df["gp_pair_ass_runtime"] + df["gp_pair_best_runtime"]
-
-        print("rt gp_pair_ass_inst_runtime", f"${df['gp_pair_ass_inst_runtime'].mean():.3f} \\pm {df['gp_pair_ass_inst_runtime'].std():.3f}$")
-        print("rt gp_pair_ass_runtime", f"${df['gp_pair_ass_runtime'].mean():.3f} \\pm {df['gp_pair_ass_runtime'].std():.3f}$")
-        print("rt gp_pair_best_runtime", f"${df['gp_pair_best_runtime'].mean():.3f} \\pm {df['gp_pair_best_runtime'].std():.3f}$")
-
-    std_cols_ = [c for c in df.columns if c.startswith("std")]
-    std_df = df[std_cols_]
-    df["std=0"] = std_df.isin([0]).sum(axis=1)
-
-    print("HOF:",(df["std=0"].mean()/10)*100)
-
-    print("rt gp_dr_best_runtime", f"${df['gp_dr_best_runtime'].mean():.3f} \\pm {df['gp_dr_best_runtime'].std():.2f}$")
-
-
-    strategies = ["gp_dr_ass_inst", "gp_dr_ass",  "gp_dr_best", "SA"]
-    if load_gp_pair:
-        strategies.extend([ "gp_pair_ass_inst", "gp_pair_ass", "gp_pair_best"])
-
-    #comparație pairwise (toți contra tuturor)
-    print(strategies)
-
-    for a, b in itertools.combinations(strategies, 2):
-        wins_a = (df[a] < df[b]).sum()
-        wins_b = (df[b] < df[a]).sum()
-        ties = (df[a] == df[b]).sum()
-
-        print(f"{a} vs. {b}; {wins_a};{wins_b};{ties}")
-
-    #rank mediu
-    ranks = df[strategies].rank(axis=1, method="average")
-    mean_ranks = ranks.mean()
-    print(";".join(f"{k};{v:.3f}\n" for k, v in mean_ranks.items()))
-
-    #Friedman test
-    if load_gp_pair:
-        stat, p = friedmanchisquare(
-            df["gp_dr_ass_inst"],
-            df["gp_dr_ass"],
-            df["gp_dr_best"],
-            df["gp_pair_ass_inst"],
-            df["gp_pair_ass"],
-            df["gp_pair_best"],
-            df["SA"]
-        )
     else:
-        stat, p = friedmanchisquare(
-            df["gp_dr_ass_inst"],
-            df["gp_dr_ass"],
-            df["gp_dr_best"],
-            df["SA"]
-        )
+        boms = json_obj["test-data-file-names"]
+        makespan = json_obj["agent"]["makespan_tests"]
+        apply_gp_time = json_obj["agent"]["running_time"]
+        _df  = pd.DataFrame({"Bom": boms, "Makespan": makespan, "RunTime" : apply_gp_time})
 
-    print("Friedman p-value:", p)
-
-    strategies = ["gp_min", "SA", "dr_min"]
-    results = {}
-
-    for a, b in itertools.combinations(strategies, 2):
-        wins_a = (df[a] < df[b]).sum()
-        wins_b = (df[b] < df[a]).sum()
-        ties = (df[a] == df[b]).sum()
-
-        print(f"{a} vs. {b}; {wins_a};{wins_b};{ties}")
-
-
-    # rank mediu
-    ranks = df[strategies].rank(axis=1, method="average")
-    mean_ranks = ranks.mean().sort_values()
-    print(";".join(f"{k};{v:.3f}\n" for k, v in mean_ranks.items()))
-
-    stat, p = friedmanchisquare(
-        df['dr_min'],
-        df["gp_min"],
-        df["SA"]
-    )
-    print("Friedman p-value:", p)
-
-    r = df["gp_dr_ass_inst_runtime"].agg(["mean", "std"])
-    print("m ass_inst_df_runtime;",f"${r['mean']:.2f} \\pm {r['std']:.2f}$" )
-
-    r = df["gp_dr_ass_runtime"].agg(["mean", "std"])
-    print("m gp_dr_ass_runtime;", f"${r['mean']:.2f} \\pm {r['std']:.2f}$")
-
-    r = df["gp_dr_best_runtime"].agg(["mean", "std"])
-    print("m gp_dr_best_runtime;", f"${r['mean']:.3f} \\pm {r['std']:.2f}$")
-
-    if load_gp_pair:
-        r = df["gp_pair_ass_inst_runtime"].agg(["mean", "std"])
-        print("m gp_pair_ass_inst_runtime;", f"${r['mean']:.2f} \\pm {r['std']:.2f}$")
-
-        r = df["gp_pair_ass_runtime"].agg(["mean", "std"])
-        print("m gp_pair_ass_runtime;", f"${r['mean']:.2f} \\pm {r['std']:.2f}$")
-
-        r = df["gp_pair_best_runtime"].agg(["mean", "std"])
-        print("m gp_pair_best_runtime;", f"${r['mean']:.3f} \\pm {r['std']:.2f}$")
-
-
-    df.to_excel(f"gp-files/{out_fine_name}_{dataset_name}_{model_dr}_{model_pair}.xlsx")
+    if df.empty:
+        df = _df
+    else:
+        df = pd.concat([df, _df],  ignore_index=True)
 
     return df
 
-def generate_data_set_results():
-    dataset = datasets["vtubes-test"]
-    load_dataset(dataset[0],"models-asptrain-large", None,
-                 f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[1]}",
-                 f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[2]}",
-                 [0,200,400,600,800,1000,1500,2000,2500,3000],
-                 "results_time_optuna")
-    # load_dataset(dataset[0], "models-asptrain-large", "models-asptrain-large-gp5t",
-    #              f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[1]}",
-    #              f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[2]}",
-    #              [0, 200],
-    #              "results",
-    #              True)
-
-generate_data_set_results()
-
-
-
-def count_dispach_rules_wins():
-    count_dr = {}
-    count_no_letsa ={}
-    for alg in dr_algo_cols:
-        count_dr[alg] = 0
-        count_no_letsa[alg]=0
-#best_algorithms
-    for key,dataset in datasets.items():
-        #print(dataset)
-        df = load_dataset(dataset[0], "models-asptrain-large", None,
-                     f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[1]}",
-                     f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[2]}",
-                     [0, 200, 400, 600, 800, 1000, 1500, 2000, 2500, 3000],
-                     "results_time_optuna")
-        #print(df['dr_best_algorithms'])
-        for val in df['dr_best_algorithms']:
-            no_letsa = False
-            if 'letsa' not in val:
-                no_letsa = True
-            algs = val.split(',')
-            for alg in algs:
-                count_dr[alg.strip()] += 1
-                if no_letsa:
-                    count_no_letsa[alg.strip()] += 1
-
-    for k, v in sorted(count_dr.items(), key=lambda item: item[1], reverse=True):
-        print(k, v)
-
-    print("-------no_letsa")
-    for k, v in sorted(count_no_letsa.items(), key=lambda item: item[1], reverse=True):
-        print(k, v)
-
-#count_dispach_rules_wins()
-
-def count_gp_rules(seeds):
-     #ma uit pe cele castigatoare
-     count_gp={}
-     for seed in seeds:
-         count_gp[f'GP_dr_ass_inst_{seed}'] = 0
-         count_gp[f'GP_dr_ass_{seed}'] = 0
-         count_gp[f'GP_dr_best_{seed}'] = 0
-
-     for key, dataset in datasets.items():
-         # print(dataset)
-         df = load_dataset(dataset[0], "models-asptrain-large", None,
-                           f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[1]}",
-                           f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[2]}",
-                           [0, 200, 400, 600, 800, 1000, 1500, 2000, 2500, 3000],
-                           "results_time_optuna")
-
-         for val in df['best_algorithms']:
-             algs = val.split(',')
-             for alg in algs:
-                 if alg.strip() in count_gp.keys():
-                     count_gp[alg.strip()] += 1
-
-     for k, v in sorted(count_gp.items(), key=lambda item: item[1], reverse=True):
-        print(k, v)
-
-     #fff
-     rules = {}
-     for key, dataset in datasets.items():
-         for seed in seeds:
-             file_path = f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[2]}/models-asptrain-large/result_gp_dr_assemble_inst_seed_{seed}.json"
-             with open(file_path, "r", encoding="utf-8") as f:
-                json_obj = json.load(f)
-
-             for i, json_obj in enumerate(json_obj["runs"]):
-                mean_ms = json_obj["agent"]["makespan_mean"]
-                key = f"rule_{seed}_{i}"
-                if key not in rules.keys():
-                     rules[key] = 0
-                rules[key] += mean_ms
-
-     print("---------Rules------------")
-     for k, v in sorted(rules.items(), key=lambda item: item[1], reverse=False):
-        print(k, v)
-
-def for_fjssp_la():
-    dataset = datasets['fjssp-la']
-    seeds = [0,200,400,600,800,1000,1500,2000,2500,3000]
-    df = load_dataset(dataset[0], "models-asptrain-large", "models-asptrain-largel-gp5t",
-                      f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[1]}",
-                      f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[2]}",
-                      seeds,
-                      "results_time_optuna____",)
-
-    # count_gp[f'GP_dr_ass_inst_{seed}'] = 0
-    # count_gp[f'GP_dr_ass_{seed}'] = 0
-    # count_gp[f'GP_dr_best_{seed}'] = 0
-
-    LB_Braune={
-    "la01.fjs":570,
-    "la02.fjs":529,
-    "la03.fjs":477,
-    "la04.fjs":502,
-    "la05.fjs":457,
-    "la06.fjs":799,
-    "la07.fjs":749,
-    "la08.fjs":765,
-    "la09.fjs":853,
-    "la10.fjs":804,
-    "la11.fjs":1071,
-    "la12.fjs":936,
-    "la13.fjs":1038,
-    "la14.fjs":1070,
-    "la15.fjs":1089,
-    "la16.fjs":717,
-    "la17.fjs":646,
-    "la18.fjs":663,
-    "la19.fjs":617,
-    "la20.fjs":756,
-    "la21.fjs":800,
-    "la22.fjs":733,
-    "la23.fjs": 809,
-    "la24.fjs":773,
-    "la25.fjs":751,
-    "la26.fjs":1052,
-    "la27.fjs":1084,
-    "la28.fjs":1069,
-    "la29.fjs":993,
-    "la30.fjs":1068,
-    "la31.fjs":1520,
-    "la32.fjs":1657,
-    "la33.fjs":1497,
-    "la34.fjs":1535,
-    "la35.fjs":1549,
-    "la36.fjs":948,
-    "la37.fjs":986,
-    "la38.fjs":943,
-    "la39.fjs":922,
-    "la40.fjs":955}
-
-
-    df["LB_Braune"] = df.index.to_series().map(LB_Braune)
-
+def load_model(alg_name, model, path_gp, file_pattern, seeds):
+    print("model",model)
+    df_ass_inst = pd.DataFrame()
     for seed in seeds:
-        df[f"GAP_dr_ass_inst_{seed}"] = (df[f"GP_dr_ass_inst_{seed}"] - df["LB_Braune"]) / df["LB_Braune"]*100
-        df[f"GAP_dr_ass_{seed}"] = (df[f"GP_dr_ass_{seed}"] - df["LB_Braune"]) / df["LB_Braune"]*100
-        df[f"GAP_dr_best_{seed}"] = (df[f"GP_dr_best_{seed}"] - df["LB_Braune"]) / df["LB_Braune"]*100
+        df_ass_inst = load_gp(df_ass_inst,
+                              f'{path_gp}/{model}/result_{file_pattern}_assemble_inst_seed_{seed}.json', useRulesAssamble=True)
+    df_ass_inst["Algorithm"] = f"{alg_name}_ass_inst"
 
-    alg = "dr"
-    gp_cols = df.filter(regex=r"^GAP_dr_ass_inst_")
-    print("gp_cols", gp_cols.columns)
-    df[f"GAP_{alg}_ass_inst_avg"] = gp_cols.mean(axis=1)
-    df[f"GAP_{alg}_ass_inst_std"] = gp_cols.std(axis=1)
+    df_ass = pd.DataFrame()
+    for seed in seeds:
+        df_ass = load_gp(df_ass,
+                         f'{path_gp}/{model}/result_{file_pattern}_assemble_seed_{seed}.json')
+    df_ass["Algorithm"] = f"{alg_name}_ass"
 
-    gp_cols = df.filter(regex=r"^GAP_dr_ass_")
-    print("gp_cols", gp_cols.columns)
-    df[f"GAP_{alg}_ass_avg"] = gp_cols.mean(axis=1)
-    df[f"GAP_{alg}_ass_std"] = gp_cols.std(axis=1)
+    df_best = pd.DataFrame()
+    for seed in seeds:
+        df_best = load_gp(df_best,
+                          f'{path_gp}/{model}/result_{file_pattern}_best_seed_{seed}.json')
 
-    gp_cols = df.filter(regex=r"^GAP_dr_best_")
-    print("gp_cols", gp_cols.columns)
-    df[f"GAP_{alg}_best_avg"] = gp_cols.mean(axis=1)
-    df[f"GAP_{alg}_best_std"] = gp_cols.std(axis=1)
-
-    # alg="pair"
-    # gp_cols = df.filter(regex=r"^GP_dr_ass_inst(?!.*runtime)")
-    # gp_cols = df.filter(regex=r"^GP_pair_ass_inst(?!.*runtime)")
-    # df[f"GP_{alg}_ass_inst_min"] = gp_cols.min(axis=1)
-    # df[f"GP_{alg}_ass_inst_avg"] = gp_cols.mean(axis=1)
-    # df[f"GP_{alg}_ass_inst_std"] = gp_cols.std(axis=1)
-    #
-    # gp_cols = df.filter(regex=r"^GP_dr_ass_(?!.*runtime|inst)")
-    # gp_cols = df.filter(regex=r"^GP_pair_ass_(?!.*runtime|inst)")
-    # df[f"GP_{alg}_ass_min"] = gp_cols.min(axis=1)
-    # df[f"GP_{alg}_ass_avg"] = gp_cols.mean(axis=1)
-    # df[f"GP_{alg}_ass_std"] = gp_cols.std(axis=1)
-    #
-    # gp_cols = df.filter(regex=r"^GP_dr_best(?!.*runtime)")
-    # gp_cols = df.filter(regex=r"^GP_pair_best(?!.*runtime)")
-    # df[f"GP_{alg}_best_min"] = gp_cols.min(axis=1)
-    # df[f"GP_{alg}_best_avg"] = gp_cols.mean(axis=1)
-    # df[f"GP_{alg}_best_std"] = gp_cols.std(axis=1)
-
-    df.to_excel(f"gp-files/fjssp-la-details-dr.xlsx")
-
-#for_fjssp_la()
+    df_best["Algorithm"] = f"{alg_name}_best"
+    return df_best, df_ass, df_ass_inst
 
 
-#count_gp_rules([0, 200, 400, 600, 800, 1000, 1500, 2000, 2500, 3000])
+def sign_test(dataset_name, variant_model, path_drsa, path_gp, seeds, includeTrainInstances=False):
+    # load dispatch rules results
+    dr_algo_cols = ['InstanceUpperBound', 'fcfs-b', 'fcfs-max', 'fcfs-min',
+                 'fop-b', 'fop-max', 'fop-min',
+                 'fopno-b-min', 'fopno-max-min', 'fopno-min-min',
+                 'letsa-avg', 'letsa-max', 'letsa-min',
+                 'mop-b', 'mop-max', 'mop-min',
+                 'mopno-b-min', 'mopno-max-min', 'mopno-min-min']
+
+    df_dr = pd.read_csv(f"/{path_drsa}/{dataset_name}-dr.csv")
+    df_dr = df_dr.pivot( index="Bom", columns="Algorithm", values="Makespan")
+    algo_df = df_dr[dr_algo_cols].replace(-1, np.inf)
+    #min makespan value from all DR
+    df_dr["dr_min"] = algo_df.min(axis=1)
+    # DR names that have makespan = min makespan value from all DR
+    df_dr["dr_best_algorithms"] = algo_df.apply(
+        lambda row: ", ".join(row.index[row == row.min()]),
+        axis=1
+    )
+
+    #Simulated annealing
+    df_sa = pd.read_csv(f"/{path_drsa}/{dataset_name}-sa-ei-5s-1p.csv")
+    df_sa["Algorithm"] = df_sa["Algorithm"].replace('SAL-Ei-LM', 'sa')
+    df_sa.rename(columns={"Time": "runtime-sa"}, inplace=True)
+    print(df_sa["runtime-sa"])
+
+    common = df_sa
+
+    algs = ["sa"]
+    #load gp variants
+    for alg_name, model, file_pattern in variant_model.values():
+        df_best, df_ass, df_ass_inst = load_model(alg_name, model, path_gp, file_pattern, seeds)
+        print(df_best.columns, df_ass.columns, df_ass_inst.columns)
+        common = pd.concat([common, df_ass_inst, df_ass, df_best], ignore_index=True)
+        algs.extend([f"{alg_name}_ass_inst", f"{alg_name}_ass", f"{alg_name}_best"])
+
+    #################################################################################
+    ### Wilcoxon test & GAP relative to best DR
+    #################################################################################
+    gap_min, gap_min_1000, gap_min_500 = {}, {}, {}
+    gap_avg, gap_avg_1000, gap_avg_500 = {}, {}, {}
+    for alg in algs:
+        gap_min[alg], gap_min_1000[alg], gap_min_500[alg] = [], [], []
+        gap_avg[alg], gap_avg_1000[alg], gap_avg_500[alg] = [], [], []
+
+    #build algorithms pairs
+    result_wilcoxon = {}
+    for alg1 in algs:
+        for alg2 in algs:
+            if alg1 != alg2:
+                result_wilcoxon[f"{alg1} {alg2}"] = {'ties': 0, 'win': 0, 'lose': 0}
+
+    #compute bonferroni constant
+    bonferroni_constant = 0.05 / (len(result_wilcoxon)/2)  # Bonferroni constant
+
+    runtime_inst = {alg:[] for alg in algs}
+
+    for instance in common['Bom'].unique():
+        #ignore instances that are in the training set
+        if (not includeTrainInstances) and instance in train_set_instances:
+            continue
+
+        df_instance_filtered = common [common['Bom'] == instance]
+        insts_details = {}
+        upperBound = df_dr.loc[instance, "dr_min"]
+
+        #construct information related to BOM nodes number that have more than 500, 1000 nodes
+        instance_nodes_no = df_instance_filtered['Nodes'].dropna().unique()
+        if len(instance_nodes_no) >= 1:
+            instance_node_no = instance_nodes_no[0]
+        else:
+            instance_node_no = 1;
+
+        #agregate information for an instance from multiple runs
+        for alg in algs:
+            inst_details = {}
+            inst_details['runs'] = df_instance_filtered[df_instance_filtered["Algorithm"]==alg]["Makespan"].head(10)
+            inst_details['min'] = df_instance_filtered[df_instance_filtered["Algorithm"] == alg]["Makespan"].head(10).min()
+            inst_details['mean'] = df_instance_filtered[df_instance_filtered["Algorithm"] == alg]["Makespan"].head(10).mean()
+            inst_details['std'] = df_instance_filtered[df_instance_filtered["Algorithm"] == alg]["Makespan"].head(10).std()
+            inst_details['runtimes'] = df_instance_filtered[df_instance_filtered["Algorithm"] == alg]["RunTime"].head(10).sum()
+
+            insts_details[alg]=inst_details
+            #print(upperBound, inst_details['min'], (upperBound - inst_details['min']) / upperBound)
+            gap_min[alg].append((upperBound - inst_details['min']) / upperBound)
+            gap_avg[alg].append((upperBound - inst_details['mean']) / upperBound)
+
+            #runtime_inst += inst_details['runtime_sum']
+            if alg in runtime_inst:
+                    #runtime_inst[alg].extend(inst_details['runtimes'])
+                    runtime_inst[alg].append(inst_details['runtimes'])
+
+            if instance_node_no >= 500:
+                gap_min_500[alg].append((upperBound - inst_details['min']) / upperBound)
+                gap_avg_500[alg].append((upperBound - inst_details['mean']) / upperBound)
+
+            if instance_node_no >= 1000:
+                gap_min_1000[alg].append((upperBound - inst_details['min']) / upperBound)
+                gap_avg_1000[alg].append((upperBound - inst_details['mean']) / upperBound)
+
+        #construct information for wilcoxon test (win, ties, lose)
+        for a, b in itertools.combinations(algs, 2):
+            a_details = insts_details[a]
+            b_details = insts_details[b]
+
+            d = np.around(np.array(a_details['runs']) - np.array(b_details['runs']), decimals=3)
+
+            if not np.any(d):
+                result_wilcoxon[a+" "+b]['ties'] += 1
+                result_wilcoxon[b+" "+a]['ties'] += 1
+            else:
+                r = wilcoxon(d)
+                if r.pvalue < bonferroni_constant:
+                    if np.array(a_details['runs']).mean() < np.array(b_details['runs']).mean():
+                        result_wilcoxon[a+" "+b]['win'] += 1
+                        result_wilcoxon[b+" "+a]['lose'] += 1
+                    else:
+                        result_wilcoxon[a+" "+b]['lose'] += 1
+                        result_wilcoxon[b+" "+a]['win'] += 1
+                else:
+                    result_wilcoxon[a + " "+b]['ties'] += 1
+                    result_wilcoxon[b + " "+a]['ties'] += 1
+
+    for k,v in result_wilcoxon.items():
+        print(k,";",f"({v['win']},{v['ties']},{v['lose']})")
+
+    ### display GAP relative to best DR
+    print("len(common['Bom'].unique())", len(common['Bom'].unique()))
+    for alg in algs:
+        print(alg, f"gap_min;  {100*average(gap_min[alg]):.2f}")
+        print(alg, f"gap_avg;  {100*average(gap_avg[alg]):.2f} \pm {100 * stdev(gap_avg[alg]):.2f}")
+
+    print("inst_no_500", len(gap_min_500['sa']))
+    if len(gap_min_500['sa']) > 0:
+        for alg in algs:
+            print(gap_min_500[alg])
+            print(alg, f"gap_min;  {100 * average(gap_min_500[alg]):.2f}")
+            print(alg, f"gap_avg;  {100 * average(gap_avg_500[alg]):.2f} \pm {100 * stdev(gap_avg_500[alg]):.2f}")
+    else:
+        print("No instance with more than 500 nodes")
+
+    print("inst_no_1000", len(gap_min_1000['sa']))
+    if len(gap_min_1000['sa']) > 0:
+        for alg in algs:
+            print(alg, f"gap_min;  {100 * average(gap_min_1000[alg]):.2f}")
+            if len(gap_avg_1000['sa']) > 1:
+                print(alg, f"gap_avg;  {100 * average(gap_avg_1000[alg]):.2f} \pm {100 * stdev(gap_avg_1000[alg]):.2f}")
+            else:
+                print(alg, f"gap_avg;  {100 * average(gap_avg_1000[alg]):.2f} \pm 0")
+    else:
+        print("No instance with more than 500 nodes")
+
+    #################################################################################
+    ### Run times
+    #################################################################################
+    r = common["runtime-sa"].agg(["mean", "std"])
+    print("SA runtime;", f"${r['mean']:.2f} \\pm {r['std']:.2f}$")
+    print("runtime_inst", runtime_inst.keys())
+    for alg in algs:
+        if alg in runtime_inst:
+            df = pd.DataFrame(runtime_inst[alg], columns=['Runmine'])
+            r= df['Runmine'].agg(["mean", "std"])
+            print(f"{alg} runtime;", f"${r['mean']:.2f} \\pm {r['std']:.2f}$")
+
+
+models = {"models-asptrain-large": ("gp_2t", "models-asptrain-large", "gp_2t"),
+          # "train_using_scaled_terminals": ("gp_2t_scale", "train_using_scaled_terminals", "gp_2t"),
+          # "models-asptrain-large-gp-1t": ("gp_1t", "models-asptrain-large-gp-1t", "gp_pair"),
+           "models-asptrain-large-simplified" : ("gp_2t_simplify", "models-asptrain-large-simplified", "gp_dr"),
+          }
+dataset = datasets['2asp']
+# sign_test(dataset[0], models,
+#           f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[1]}",
+#           f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[2]}",
+#           [0, 200, 400, 600, 800, 1000, 1500, 2000, 2500, 3000])
 
 
 
-
+#######################################################################
+##  Parse rules terminals
+#######################################################################
 def  parse_terminals(terminals, rules, count_all=False):
     for rule in rules:
         for key in terminals:
-            aparitii = rule.count(key)
-            if aparitii>0:
+            occurrences = rule.count(key)
+            if occurrences>0:
                 if count_all:
-                    terminals[key] += aparitii
+                    terminals[key] += occurrences
                 else:
                     terminals[key] += 1
     print(len(rules),terminals)
+    for terminal, apperances in terminals.items():
+        print(terminal, apperances/len(rules)*100)
 
 import matplotlib.pyplot as plt
 
@@ -610,511 +421,144 @@ def call_parse_terminals():
 #call_parse_terminals()
 
 
-def parse_rules_selected(in_files, seeds):
-    rules_prefix=["GP_dr_ass", "GP_dr_ass_inst", "GP_dr_best"]
-    rules_selection_frequency={}
-    for rule_prefix in rules_prefix:
-        for seed in seeds:
-            rules_selection_frequency[f'{rule_prefix}_{seed}'] = 0
-
-    print("rules_selection_frequency", rules_selection_frequency)
-
-
-#parse_rules_selected("", [0,200,400,600,800,1000])
-
-def load_gp(df, file_path, load_gp_pair=False):
-    with open(file_path, "r", encoding="utf-8") as f:
-        json_obj = json.load(f)
-
-    if load_gp_pair:
-        dfs = []
-        for i, json_obj in enumerate(json_obj["runs"]):
-            bom = json_obj["test-data-file-names"]
-            ms = json_obj["agent"]["makespan_tests"]
-            apply_gp_time = json_obj["agent"]["running_time"]
-
-            df_i = pd.DataFrame({
-                "Bom": bom,
-                "Makespan": ms,
-                "run": i,
-                "RunTime": apply_gp_time
-            })
-            dfs.append(df_i)
-        gp_all_df = pd.concat(dfs, ignore_index=True)
-        gp_min_df = (
-            gp_all_df
-            .groupby("Bom")
-            .agg(
-                Makespan=("Makespan", "min"),
-                RunTime=("RunTime", "sum")
-            )
-            .reset_index()
-        )
-        #print(gp_min_df)
-        _df = gp_min_df
-
-        #print("_df", df)
-
-    else:
-        boms = json_obj["test-data-file-names"]
-        makespan = json_obj["agent"]["makespan_tests"]
-        apply_gp_time = json_obj["agent"]["running_time"]
-        _df  = pd.DataFrame({"Bom": boms, "Makespan": makespan, "RunTime" : apply_gp_time})
-
-    if df.empty:
-        df = _df
-    else:
-        df = pd.concat([df, _df],  ignore_index=True)
-
-    print(df.columns)
-    return df
-
-def sign_test(dataset_name, model, path_drsa, path_gp, seeds):
-    # dispach rules
-    df = pd.read_csv(f"/{path_drsa}/{dataset_name}-dr.csv")
-
-    algo_cols = ['InstanceUpperBound', 'fcfs-b', 'fcfs-max', 'fcfs-min',
-                 'fop-b', 'fop-max', 'fop-min',
-                 'fopno-b-min', 'fopno-max-min', 'fopno-min-min',
-                 'letsa-avg', 'letsa-max', 'letsa-min',
-                 'mop-b', 'mop-max', 'mop-min',
-                 'mopno-b-min', 'mopno-max-min', 'mopno-min-min']
-
-
-    df_dr = df.pivot(
-        index="Bom",
-        columns="Algorithm",
-        values="Makespan"
-    )
-    algo_df = df_dr[algo_cols].replace(-1, np.inf)
-    df_dr["dr_min"] = algo_df.min(axis=1)
-    df_dr["dr_best_algorithms"] = algo_df.apply(
-        lambda row: ", ".join(row.index[row == row.min()]),
-        axis=1
-    )
-
-    df_sa = pd.read_csv(f"/{path_drsa}/{dataset_name}-sa-ei.csv")
-    df_sa["Algorithm"] = df_sa["Algorithm"].replace('SAL-Ei-LM', 'sa')
-
-    df_ass_inst = pd.DataFrame()
-    for seed in seeds:
-        #print(f'{path_gp}/{model}/result_gp_dr_assemble_inst_seed_{seed}.json')
-        df_ass_inst = load_gp(df_ass_inst,
-                         f'{path_gp}/{model}/result_gp_2t_assemble_inst_seed_{seed}.json', load_gp_pair=True)
-    df_ass_inst["Algorithm"] = "gp_dr_ass_inst"
-
-    df_ass = pd.DataFrame()
-    for seed in seeds:
-        df_ass = load_gp(df_ass,
-                               f'{path_gp}/{model}/result_gp_2t_assemble_seed_{seed}.json')
-    df_ass["Algorithm"] = "gp_dr_ass"
-
-    df_best = pd.DataFrame()
-    for seed in seeds:
-        df_best = load_gp(df_best,
-                               f'{path_gp}/{model}/result_gp_2t_best_seed_{seed}.json')
-        #print("df_best", df_best.shape)
-    df_best["Algorithm"] = "gp_dr_best"
-    #print(df_best.columns)
-
-    dfs = {
-        "gp_dr_best": df_best,
-        "gp_dr_ass": df_ass,
-        "gp_dr_ass_inst": df_ass_inst,
-        "sa": df_sa,
-    }
-
-    common =  pd.concat([df_ass_inst, df_ass, df_best, df_sa, ], ignore_index=True)
-
-    #common = common.dropna()
-
-    n=len(dfs)
-    mat = {"gp_dr_ass gp_dr_best":{'ties':0,'win':0,'lose':0},
-           "gp_dr_ass sa": {'ties': 0, 'win': 0, 'lose': 0},
-           "gp_dr_ass gp_dr_ass_inst": {'ties': 0, 'win': 0, 'lose': 0},
-
-           "gp_dr_best gp_dr_ass":{'ties':0,'win':0,'lose':0},
-           "gp_dr_best sa": {'ties': 0, 'win': 0, 'lose': 0},
-           "gp_dr_best gp_dr_ass_inst": {'ties': 0, 'win': 0, 'lose': 0},
-
-
-           "sa gp_dr_ass": {'ties': 0, 'win': 0, 'lose': 0},
-           "sa gp_dr_best": {'ties': 0, 'win': 0, 'lose': 0},
-           "sa gp_dr_ass_inst": {'ties': 0, 'win': 0, 'lose': 0},
-
-           "gp_dr_ass_inst gp_dr_ass": {'ties': 0, 'win': 0, 'lose': 0},
-           "gp_dr_ass_inst gp_dr_best": {'ties': 0, 'win': 0, 'lose': 0},
-           "gp_dr_ass_inst sa": {'ties': 0, 'win': 0, 'lose': 0},
-           }
-    gab_min = {"gp_dr_ass_inst":0,"gp_dr_ass":0, "gp_dr_best":0, "sa":0, }
-    gab_avg = {"gp_dr_ass_inst": 0, "gp_dr_ass": 0, "gp_dr_best": 0, "sa": 0, }
-    inst_no = 0
-
-    gap_min_1000 = {"gp_dr_ass_inst": 0, "gp_dr_ass": 0, "gp_dr_best": 0, "sa": 0, }
-    gap_avg_1000 = {"gp_dr_ass_inst": 0, "gp_dr_ass": 0, "gp_dr_best": 0, "sa": 0, }
-    inst_no_1000 =0
-
-    gap_min_500 = {"gp_dr_ass_inst": 0, "gp_dr_ass": 0, "gp_dr_best": 0, "sa": 0, }
-    gap_avg_500 = {"gp_dr_ass_inst": 0, "gp_dr_ass": 0, "gp_dr_best": 0, "sa": 0, }
-    inst_no_500 = 0
-
-    algs=["gp_dr_ass_inst", "gp_dr_ass", "gp_dr_best","sa", ]
-    nr_perechi=6
-
-    print(common.shape)
-    constanta = 0.05
-    constanta = 0.05 / nr_perechi  # bonfe ...
-
-    print(df_dr.columns)
-
-    for instance in common['Bom'].unique():
-        if instance in train_set_instances:
-            continue
-
-        inst_no += 1
-        df_instance_filtered = common [common['Bom'] == instance]
-        insts_details = {}
-        #print('df_instance_filtered',df_instance_filtered.shape)
-        upperBound = df_dr.loc[instance, "dr_min"]
-        runtime_inst = 0
-        instance_node_no = df_instance_filtered['Nodes'].unique()[1]
-        if instance_node_no >= 500:
-            inst_no_500 += 1
-        if instance_node_no >= 1000:
-            inst_no_1000 += 1
-
-        for alg in algs:
-            inst_details = {}
-            inst_details['runs'] = df_instance_filtered[df_instance_filtered["Algorithm"]==alg]["Makespan"].head(10)
-            inst_details['min'] = df_instance_filtered[df_instance_filtered["Algorithm"] == alg]["Makespan"].head(10).min()
-            inst_details['mean'] = df_instance_filtered[df_instance_filtered["Algorithm"] == alg]["Makespan"].head(10).mean()
-            inst_details['std'] = df_instance_filtered[df_instance_filtered["Algorithm"] == alg]["Makespan"].head(10).std()
-            inst_details['runtime'] = df_instance_filtered[df_instance_filtered["Algorithm"] == alg]["RunTime"].head(10).sum()
-            insts_details[alg]=inst_details
-            #print(upperBound, inst_details['min'], (upperBound - inst_details['min']) / upperBound)
-            gab_min[alg] += (upperBound - inst_details['min']) / upperBound
-            gab_avg[alg] += (upperBound - inst_details['mean']) / upperBound
-            runtime_inst += inst_details['runtime']
-            if instance_node_no >= 500:
-                gap_min_500[alg] += (upperBound - inst_details['min']) / upperBound
-                gap_avg_500[alg] += (upperBound - inst_details['mean']) / upperBound
-
-            if instance_node_no >= 1000:
-                gap_min_1000[alg] += (upperBound - inst_details['min']) / upperBound
-                gap_avg_1000[alg] += (upperBound - inst_details['mean']) / upperBound
-
-
-
-        #print("runtime_inst",instance, runtime_inst)
-
-        for a, b in itertools.combinations(algs, 2):
-
-            a_details = insts_details[a]
-            b_details = insts_details[b]
-            # print(a,b)
-            # print("A runs:", len(a_details['runs']), "B runs:", len(b_details['runs']))
-
-            d = np.around(np.array(a_details['runs']) - np.array(b_details['runs']), decimals=3)
-
-           # print("algs:",a,b)
-
-            if not np.any(d):
-                mat[a+" "+b]['ties'] += 1
-                mat[b+" "+a]['ties'] += 1
-            else:
-                r = wilcoxon(d)
-                #print(instance, r,d)
-                if r.pvalue < constanta:
-                    if np.array(a_details['runs']).mean() < np.array(b_details['runs']).mean():
-                        mat[a+" "+b]['win'] += 1
-                        mat[b+" "+a]['lose'] += 1
-                    else:
-                        mat[a+" "+b]['lose'] += 1
-                        mat[b+" "+a]['win'] += 1
-                else:
-                    mat[a + " "+b]['ties'] += 1
-                    mat[b + " "+a]['ties'] += 1
-
-    wilcoxon_list = ["gp_dr_ass_inst gp_dr_ass","gp_dr_ass_inst gp_dr_best",
-                "gp_dr_ass gp_dr_best","gp_dr_ass_inst sa","gp_dr_ass sa", "gp_dr_best sa"]
-    for k in wilcoxon_list:
-        e  = mat[k]
-        #print(k,";",e['win'],";",e['lose'],";",e['ties'])
-        print(k,";",f"({e['win']},{e['ties']},{e['lose']})")
-
-    print("len(common['Bom'].unique())", len(common['Bom'].unique()))
-    for alg in algs:
-        print(alg, f"gap_min;  {100*gab_min[alg]/inst_no:.2f}")
-        print(alg, f"gap_avg;  {100*gab_avg[alg] / inst_no:.2f}")
-
-    print("inst_no_500", inst_no_500)
-    if inst_no_500 > 0:
-        for alg in algs:
-            print(alg, f"gap_min 500;  {100*gap_min_500[alg]/inst_no_500:.2f}")
-            print(alg, f"gap_avg 500;  {100*gap_avg_500[alg] /inst_no_500:.2f}")
-    else:
-        print("No instance with more than 500 nodes")
-
-    print("inst_no_1000", inst_no_1000)
-    if inst_no_1000 > 0:
-        for alg in algs:
-            print(alg, f"gap_min 1000;  {100*gap_min_1000[alg]/inst_no_1000:.2f}")
-            print(alg, f"gap_avg 100;  {100*gap_avg_1000[alg] /inst_no_1000:.2f}")
-    else:
-        print("No instance with more than 500 nodes")
-
-    # for k,e in insts_details.items():
-    #     print(k,e)
-
-
-
-# dataset=datasets['vdeep-train']
-# sign_test(dataset[0],"models-asptrain-large",
-#              f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[1]}",
-#              f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[2]}",
-#              [0,200,400,600,800,1000,1500,2000,2500,3000])
-#
-
-
-
-def parse_rules_selected(in_files, seeds):
-    rules_prefix=["GP_dr_ass", "GP_dr_ass_inst", "GP_dr_best"]
-    rules_selection_frequency={}
-    for rule_prefix in rules_prefix:
-        for seed in seeds:
-            rules_selection_frequency[f'{rule_prefix}_{seed}'] = 0
-
-    print("rules_selection_frequency", rules_selection_frequency)
-
-
-#parse_rules_selected("", [0,200,400,600,800,1000])
-
-def load_gp(df, file_path, load_gp_pair=False):
-    with open(file_path, "r", encoding="utf-8") as f:
-        json_obj = json.load(f)
-
-    if load_gp_pair:
-        dfs = []
-        for i, json_obj in enumerate(json_obj["runs"]):
-            bom = json_obj["test-data-file-names"]
-            ms = json_obj["agent"]["makespan_tests"]
-            apply_gp_time = json_obj["agent"]["running_time"]
-
-            df_i = pd.DataFrame({
-                "Bom": bom,
-                "Makespan": ms,
-                "run": i,
-                "RunTime": apply_gp_time
-            })
-            dfs.append(df_i)
-        gp_all_df = pd.concat(dfs, ignore_index=True)
-        gp_min_df = (
-            gp_all_df
-            .groupby("Bom")
-            .agg(
-                Makespan=("Makespan", "min"),
-                RunTime=("RunTime", "sum")
-            )
-            .reset_index()
-        )
-        #print(gp_min_df)
-        _df = gp_min_df
-
-        #print("_df", df)
-
-    else:
-        boms = json_obj["test-data-file-names"]
-        makespan = json_obj["agent"]["makespan_tests"]
-        apply_gp_time = json_obj["agent"]["running_time"]
-        _df  = pd.DataFrame({"Bom": boms, "Makespan": makespan, "RunTime" : apply_gp_time})
-
-    if df.empty:
-        df = _df
-    else:
-        df = pd.concat([df, _df],  ignore_index=True)
-
-    print(df.columns)
-    return df
-
-
-def load_model(alg_name, model, path_gp, seeds):
-    df_ass_inst = pd.DataFrame()
-    for seed in seeds:
-        #print(f'{path_gp}/{model}/result_gp_dr_assemble_inst_seed_{seed}.json')
-        df_ass_inst = load_gp(df_ass_inst,
-                              f'{path_gp}/{model}/result_gp_2t_assemble_inst_seed_{seed}.json', load_gp_pair=True)
-    df_ass_inst["Algorithm"] = f"{alg_name}_ass_inst"
-
-    df_ass = pd.DataFrame()
-    for seed in seeds:
-        df_ass = load_gp(df_ass,
-                         f'{path_gp}/{model}/result_gp_2t_assemble_seed_{seed}.json')
-    df_ass["Algorithm"] = f"{alg_name}_ass"
-
-    df_best = pd.DataFrame()
-    for seed in seeds:
-        df_best = load_gp(df_best,
-                          f'{path_gp}/{model}/result_gp_2t_best_seed_{seed}.json')
-        #print("df_best", df_best.shape)
-    df_best["Algorithm"] = f"{alg_name}_best"
-    return df_best, df_ass, df_ass_inst
-
-
-def sign_test_v2(dataset_name, variant_model, path_drsa, path_gp, seeds):
-    # dispach rules
-    df = pd.read_csv(f"/{path_drsa}/{dataset_name}-dr.csv")
-
-    algo_cols = ['InstanceUpperBound', 'fcfs-b', 'fcfs-max', 'fcfs-min',
-                 'fop-b', 'fop-max', 'fop-min',
-                 'fopno-b-min', 'fopno-max-min', 'fopno-min-min',
-                 'letsa-avg', 'letsa-max', 'letsa-min',
-                 'mop-b', 'mop-max', 'mop-min',
-                 'mopno-b-min', 'mopno-max-min', 'mopno-min-min']
-
-
-    df_dr = df.pivot(
-        index="Bom",
-        columns="Algorithm",
-        values="Makespan"
-    )
-    algo_df = df_dr[algo_cols].replace(-1, np.inf)
-    df_dr["dr_min"] = algo_df.min(axis=1)
-    df_dr["dr_best_algorithms"] = algo_df.apply(
-        lambda row: ", ".join(row.index[row == row.min()]),
-        axis=1
-    )
-
-    df_sa = pd.read_csv(f"/{path_drsa}/{dataset_name}-sa-ei.csv")
-    df_sa["Algorithm"] = df_sa["Algorithm"].replace('SAL-Ei-LM', 'sa')
-
-    print(df_sa)
-
-    common = df_sa
-
-    algs = ["sa"]
-    for alg_name, model in variant_model.values():
-        print("--",alg_name, model)
-        df_best, df_ass, df_ass_inst = load_model(alg_name, model, path_gp, seeds)
+#######################################################################
+### GAP fjssp-la in literature
+#######################################################################
+
+def for_fjssp_la(alg_name, variant_model, path_gp, seeds):
+    common = pd.DataFrame()
+
+    algs = []
+    for alg_name, model, file_pattern in variant_model.values():
+        df_best, df_ass, df_ass_inst = load_model(alg_name, model, path_gp, file_pattern, seeds)
+        print(df_best.columns, df_ass.columns, df_ass_inst.columns)
         common = pd.concat([common, df_ass_inst, df_ass, df_best], ignore_index=True)
         algs.extend([f"{alg_name}_ass_inst", f"{alg_name}_ass", f"{alg_name}_best"])
 
-    print(algs)
+    # Results reported in: R. Braune, F. Benda, K. F. Doerner, and R. F. Hartl, “A genetic program-
+    # ming learning approach to generate dispatching rules for flexible shop
+    # scheduling problems,” International Journal of Production Economics,
+    # vol. 243, p. 108342, 2022.
+    LB_Braune={
+    "la01.fjs":570, "la02.fjs":529, "la03.fjs":477, "la04.fjs":502, "la05.fjs":457,
+    "la06.fjs":799, "la07.fjs":749, "la08.fjs":765, "la09.fjs":853, "la10.fjs":804,
+    "la11.fjs":1071, "la12.fjs":936, "la13.fjs":1038, "la14.fjs":1070, "la15.fjs":1089,
+    "la16.fjs":717, "la17.fjs":646, "la18.fjs":663, "la19.fjs":617, "la20.fjs":756,
+    "la21.fjs":800, "la22.fjs":733,  "la23.fjs": 809, "la24.fjs":773, "la25.fjs":751,
+    "la26.fjs":1052, "la27.fjs":1084, "la28.fjs":1069, "la29.fjs":993, "la30.fjs":1068,
+    "la31.fjs":1520, "la32.fjs":1657, "la33.fjs":1497, "la34.fjs":1535, "la35.fjs":1549,
+    "la36.fjs":948, "la37.fjs":986, "la38.fjs":943, "la39.fjs":922, "la40.fjs":955
+    }
 
-    gap_min, gap_min_1000, gap_min_500 = {}, {}, {}
-    gap_avg, gap_avg_1000, gap_avg_500 = {}, {}, {}
-    for alg in algs:
-        gap_min[alg], gap_min_1000[alg], gap_min_500[alg] = [], [], []
-        gap_avg[alg], gap_avg_1000[alg], gap_avg_500[alg] = [], [], []
+    #common["LB_Braune"] = common.index.to_series().map(LB_Braune)
 
-    result_wilcoxon = {}
-    for alg1 in algs:
-        for alg2 in algs:
-            if alg1 != alg2:
-                result_wilcoxon[f"{alg1} {alg2}"] = {'ties': 0, 'win': 0, 'lose': 0}
-    print(common.shape)
-    bonferroni_constant = 0.05 / (len(result_wilcoxon)/2)  # Bonferroni constant
+    print("column",common)
+    print("innstances name", common['Bom'].unique())
+    print("algs", algs)
 
-    print(df_dr.columns)
+    gaps = {}
+    gaps_min ={}
 
     for instance in common['Bom'].unique():
-        if instance in train_set_instances:
-            continue
 
         df_instance_filtered = common [common['Bom'] == instance]
-        insts_details = {}
-        #print('df_instance_filtered',df_instance_filtered.shape)
-        upperBound = df_dr.loc[instance, "dr_min"]
-        runtime_inst = 0
-        instance_node_no = df_instance_filtered['Nodes'].unique()[1]
 
+        #agregate information for an instance from multiple runs
         for alg in algs:
-            inst_details = {}
-            inst_details['runs'] = df_instance_filtered[df_instance_filtered["Algorithm"]==alg]["Makespan"].head(10)
-            inst_details['min'] = df_instance_filtered[df_instance_filtered["Algorithm"] == alg]["Makespan"].head(10).min()
-            inst_details['mean'] = df_instance_filtered[df_instance_filtered["Algorithm"] == alg]["Makespan"].head(10).mean()
-            inst_details['std'] = df_instance_filtered[df_instance_filtered["Algorithm"] == alg]["Makespan"].head(10).std()
-            inst_details['runtime'] = df_instance_filtered[df_instance_filtered["Algorithm"] == alg]["RunTime"].head(10).sum()
-            insts_details[alg]=inst_details
-            #print(upperBound, inst_details['min'], (upperBound - inst_details['min']) / upperBound)
-            gap_min[alg].append((upperBound - inst_details['min']) / upperBound)
-            gap_avg[alg].append((upperBound - inst_details['mean']) / upperBound)
+            gap =[]
+            for mean_makespan in  df_instance_filtered[df_instance_filtered["Algorithm"] == alg]["Makespan"].head(10):
+                gap.append((mean_makespan - LB_Braune[instance]) / LB_Braune[instance] *100)
+            gaps[(instance, alg)] = (mean(gap), stdev(gap))
 
-            runtime_inst += inst_details['runtime']
-            if instance_node_no >= 500:
-                gap_min_500[alg].append((upperBound - inst_details['min']) / upperBound)
-                gap_avg_500[alg].append((upperBound - inst_details['mean']) / upperBound)
+            min_makespan = df_instance_filtered[df_instance_filtered["Algorithm"] == alg]["Makespan"].head(10).min()
+            gaps_min[(instance, alg)] = (min_makespan - LB_Braune[instance]) / LB_Braune[instance] * 100
 
-            if instance_node_no >= 1000:
-                gap_min_1000[alg].append((upperBound - inst_details['min']) / upperBound)
-                gap_avg_1000[alg].append((upperBound - inst_details['mean']) / upperBound)
 
-        for a, b in itertools.combinations(algs, 2):
-
-            a_details = insts_details[a]
-            b_details = insts_details[b]
-            print(a,b)
-            print("A runs:", len(a_details['runs']), "B runs:", len(b_details['runs']))
-
-            d = np.around(np.array(a_details['runs']) - np.array(b_details['runs']), decimals=3)
-
-           # print("algs:",a,b)
-
-            if not np.any(d):
-                result_wilcoxon[a+" "+b]['ties'] += 1
-                result_wilcoxon[b+" "+a]['ties'] += 1
-            else:
-                r = wilcoxon(d)
-                #print(instance, r,d)
-                if r.pvalue < bonferroni_constant:
-                    if np.array(a_details['runs']).mean() < np.array(b_details['runs']).mean():
-                        result_wilcoxon[a+" "+b]['win'] += 1
-                        result_wilcoxon[b+" "+a]['lose'] += 1
-                    else:
-                        result_wilcoxon[a+" "+b]['lose'] += 1
-                        result_wilcoxon[b+" "+a]['win'] += 1
-                else:
-                    result_wilcoxon[a + " "+b]['ties'] += 1
-                    result_wilcoxon[b + " "+a]['ties'] += 1
-
-    for k,v in result_wilcoxon.items():
-        #print(k,";",e['win'],";",e['lose'],";",e['ties'])
-        print(k,";",f"({v['win']},{v['ties']},{v['lose']})")
-
-    print("len(common['Bom'].unique())", len(common['Bom'].unique()))
     for alg in algs:
-        print(alg, f"gap_min;  {100*average(gap_min[alg]):.2f}")
-        print(alg, f"gap_avg;  {100*average(gap_avg[alg]):.2f} \pm {100 * stdev(gap_avg[alg]):.2f}")
+        print("GAP for best obtained value")
+        # display the gap obtain by the rule that generated minimum makespan
+        mean1_5 = (gaps_min[('la01.fjs',alg)] +gaps_min[('la02.fjs',alg)]+gaps_min[('la03.fjs',alg)]+gaps_min[('la04.fjs',alg)]+gaps_min[('la05.fjs',alg)] )/ 5
+        print(f"strategy {alg} gap: {mean1_5:.2f}")
+        mean6_10 = (gaps_min[('la06.fjs', alg)] + gaps_min[('la07.fjs', alg)] + gaps_min[('la08.fjs', alg)] + gaps_min[
+            ('la09.fjs', alg)] + gaps_min[('la10.fjs', alg)]) / 5
+        print(f"strategy {alg} gap: {mean6_10:.2f}")
+        mean11_15 = (gaps_min[('la11.fjs', alg)] + gaps_min[('la12.fjs', alg)] + gaps_min[('la13.fjs', alg)] + gaps_min[
+            ('la14.fjs', alg)] + gaps_min[('la15.fjs', alg)]) / 5
+        print(f"strategy {alg} gap: {mean11_15:.2f}")
+        mean16_20 = (gaps_min[('la16.fjs', alg)] + gaps_min[('la17.fjs', alg)] + gaps_min[('la18.fjs', alg)] + gaps_min[
+            ('la19.fjs', alg)] + gaps_min[('la20.fjs', alg)]) / 5
+        print(f"strategy {alg} gap: {mean16_20:.2f}")
+        mean21_25 = (gaps_min[('la21.fjs', alg)] + gaps_min[('la22.fjs', alg)] + gaps_min[('la23.fjs', alg)] + gaps_min[
+            ('la24.fjs', alg)] + gaps_min[('la25.fjs', alg)]) / 5
+        print(f"strategy {alg} gap: {mean21_25:.2f}")
+        mean26_30 = (gaps_min[('la26.fjs', alg)] + gaps_min[('la27.fjs', alg)] + gaps_min[('la28.fjs', alg)] + gaps_min[
+            ('la29.fjs', alg)] + gaps_min[('la30.fjs', alg)]) / 5
+        print(f"strategy {alg} gap: {mean26_30:.2f}")
+        mean31_35 = (gaps_min[('la31.fjs', alg)] + gaps_min[('la32.fjs', alg)] + gaps_min[('la33.fjs', alg)] + gaps_min[
+            ('la34.fjs', alg)] + gaps_min[('la35.fjs', alg)]) / 5
+        print(f"strategy {alg} gap: {mean31_35:.2f}")
+        mean36_40 = (gaps_min[('la36.fjs', alg)] + gaps_min[('la37.fjs', alg)] + gaps_min[('la38.fjs', alg)] + gaps_min[
+            ('la39.fjs', alg)] + gaps_min[('la40.fjs', alg)]) / 5
+        print(f"strategy {alg} gap: {mean36_40:.2f}")
 
-    print("inst_no_500", len(gap_min_500['sa']))
-    if len(gap_min_500['sa']) > 0:
-        for alg in algs:
-            print(gap_min_500[alg])
-            print(alg, f"gap_min;  {100 * average(gap_min_500[alg]):.2f}")
-            print(alg, f"gap_avg;  {100 * average(gap_avg_500[alg]):.2f} \pm {100 * stdev(gap_avg_500[alg]):.2f}")
-    else:
-        print("No instance with more than 500 nodes")
 
-    print("inst_no_1000", len(gap_min_1000['sa']))
-    if len(gap_min_1000['sa']) > 0:
-        for alg in algs:
-            print(alg, f"gap_min;  {100 * average(gap_min_1000[alg]):.2f}")
-            print(alg, f"gap_avg;  {100 * average(gap_avg_1000[alg]):.2f} \pm {100 * stdev(gap_avg_1000[alg]):.2f}")
-    else:
-        print("No instance with more than 500 nodes")
+        # display mean gap and stdev
+        print("mean GAP on all rules")
+        mean1_5 = (gaps[('la01.fjs', alg)][0] + gaps[('la02.fjs', alg)][0] + gaps[('la03.fjs', alg)][0] + gaps[
+            ('la04.fjs', alg)][0] + gaps[('la05.fjs', alg)][0]) / 5
+        stdev1_5 = (gaps[('la01.fjs', alg)][1] + gaps[('la02.fjs', alg)][1] + gaps[('la03.fjs', alg)][1] + gaps[
+            ('la04.fjs', alg)][1] + gaps[('la05.fjs', alg)][1]) / 5
+        print(f"strategy {alg} mean-gap: {mean1_5:.2f} \pm {stdev1_5:.2f}" )
+
+        mean6_10 = (gaps[('la06.fjs', alg)][0] + gaps[('la07.fjs', alg)][0] + gaps[('la08.fjs', alg)][0] + gaps[
+            ('la09.fjs', alg)][0] + gaps[('la10.fjs', alg)][0]) / 5
+        stdev6_10 = (gaps[('la06.fjs', alg)][1] + gaps[('la07.fjs', alg)][1] + gaps[('la08.fjs', alg)][1] + gaps[
+            ('la09.fjs', alg)][1] + gaps[('la10.fjs', alg)][1]) / 5
+        print(f"strategy {alg} mean-gap: {mean6_10:.2f} \pm {stdev6_10:.2f}" )
+
+        mean11_15 = (gaps[('la11.fjs', alg)][0] + gaps[('la12.fjs', alg)][0] + gaps[('la13.fjs', alg)][0] + gaps[
+            ('la14.fjs', alg)][0] + gaps[('la15.fjs', alg)][0]) / 5
+        stdev11_15 = (gaps[('la11.fjs', alg)][1] + gaps[('la12.fjs', alg)][1] + gaps[('la13.fjs', alg)][1] + gaps[
+            ('la14.fjs', alg)][1] + gaps[('la15.fjs', alg)][1]) / 5
+        print(f"strategy {alg} mean-gap: {mean11_15:.2f} \pm {stdev11_15:.2f}" )
+
+        mean16_20 = (gaps[('la16.fjs', alg)][0] + gaps[('la17.fjs', alg)][0] + gaps[('la18.fjs', alg)][0] + gaps[
+            ('la19.fjs', alg)][0] + gaps[('la20.fjs', alg)][0]) / 5
+        stdev16_20 = (gaps[('la16.fjs', alg)][1] + gaps[('la17.fjs', alg)][1] + gaps[('la18.fjs', alg)][1] + gaps[
+            ('la19.fjs', alg)][1] + gaps[('la20.fjs', alg)][1]) / 5
+        print(f"strategy {alg} mean-gap: {mean16_20:.2f} \pm {stdev16_20:.2f}" )
+
+        mean21_25 = (gaps[('la21.fjs', alg)][0] + gaps[('la22.fjs', alg)][0] + gaps[('la23.fjs', alg)][0] + gaps[
+            ('la24.fjs', alg)][0] + gaps[('la25.fjs', alg)][0]) / 5
+        stdev21_25 = (gaps[('la21.fjs', alg)][1] + gaps[('la22.fjs', alg)][1] + gaps[('la23.fjs', alg)][1] + gaps[
+            ('la24.fjs', alg)][1] + gaps[('la25.fjs', alg)][1]) / 5
+        print(f"strategy {alg} mean-gap: {mean21_25:.2f} \pm {stdev21_25:.2f}")
+
+        mean26_30 = (gaps[('la26.fjs', alg)][0] + gaps[('la27.fjs', alg)][0] + gaps[('la28.fjs', alg)][0] + gaps[
+            ('la29.fjs', alg)][0] + gaps[('la30.fjs', alg)][0]) / 5
+        stdev26_30 = (gaps[('la26.fjs', alg)][1] + gaps[('la27.fjs', alg)][1] + gaps[('la28.fjs', alg)][1] + gaps[
+            ('la29.fjs', alg)][1] + gaps[('la30.fjs', alg)][1]) / 5
+        print(f"strategy {alg} mean-gap: {mean26_30:.2f} \pm {stdev26_30:.2f}" )
+
+        mean31_35 = (gaps[('la31.fjs', alg)][0] + gaps[('la32.fjs', alg)][0] + gaps[('la33.fjs', alg)][0] + gaps[
+            ('la34.fjs', alg)][0] + gaps[('la35.fjs', alg)][0]) / 5
+        stdev31_35 = (gaps[('la31.fjs', alg)][1] + gaps[('la32.fjs', alg)][1] + gaps[('la33.fjs', alg)][1] + gaps[
+            ('la34.fjs', alg)][1] + gaps[('la35.fjs', alg)][1]) / 5
+        print(f"strategy {alg} mean-gap: {mean31_35:.2f} \pm {stdev31_35:.2f}" )
+
+        mean36_40 = (gaps[('la36.fjs', alg)][0] + gaps[('la37.fjs', alg)][0] + gaps[('la38.fjs', alg)][0] + gaps[
+            ('la39.fjs', alg)][0] + gaps[('la40.fjs', alg)][0]) / 5
+        stdev36_40 = (gaps[('la36.fjs', alg)][1] + gaps[('la37.fjs', alg)][1] + gaps[('la38.fjs', alg)][1] + gaps[
+            ('la39.fjs', alg)][1] + gaps[('la40.fjs', alg)][1]) / 5
+        print(f"strategy {alg} mean-gap: {mean36_40:.2f} \pm {stdev36_40:.2f}" )
 
 
-models = {"models-asptrain-large": ("gp_2t", "models-asptrain-large"),
-         "train_using_scaled_terminals": ("gp_2t_s", "train_using_scaled_terminals")}
-dataset = datasets['vdeep-test']
-sign_test_v2(dataset[0], models,
-          f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[1]}",
-          f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[2]}",
-          [0, 200, 400, 600, 800, 1000, 1500, 2000, 2500, 3000])
-
-#ds-23, 1t-122
-
-# sign_test(dataset[0],"models-asptrain-large",
-#              f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[1]}",
-#              f"/Users/flaviamicota/work/scamp-ml/schlaby-asp-gnn-3aprilie/results/{dataset[2]}",
-#              [0,200,400,600,800,1000,1500,2000,2500,3000])
-
+models = {"models-asptrain-large": ("gp_2t", "models-asptrain-large", "gp_2t"),
+          # "train_using_scaled_terminals": ("gp_2t_scale", "train_using_scaled_terminals", "gp_2t"),
+          # "models-asptrain-large-gp-1t": ("gp_1t", "models-asptrain-large-gp-1t", "gp_pair"),
+          #"models-asptrain-large-simplified" : ("gp_2t_simplify", "models-asptrain-large-simplified", "gp_dr"),
+          }
+dataset = datasets['fjssp-la']
+for_fjssp_la(dataset[0], models,
+             f"../../results/{dataset[1]}",
+              [0, 200, 400, 600, 800, 1000, 1500, 2000, 2500, 3000])

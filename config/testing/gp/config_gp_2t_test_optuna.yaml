@@ -4,9 +4,9 @@
 # (R) [str] Type of your scheduling problem - this template is for the asp
 sp_type: asp
 # (R)   [string]  GP algorithm you want to use
-algorithm: gp-dr
+algorithm: gp-2trees
 # (R)   [string]  Test Environment: Should be the same the agent was trained on
-environment: env_2t
+environment: env_gp
 # (O)   [string]  Name of the model you want to load for testing
 saved_model_name: gp_dr_ASPTrain_optunaParam
 # (R)   [int]     Seed for all pseudo random generators (random, numpy, torch) [0,200,400,600]
@@ -21,6 +21,6 @@ experiment_save_path: models/gp/models-asptrain-large/
 # (0) [string] Evaluate using only the best element (best), or using an assemble (assemble), or assemble-instances
 evaluation_type: best
 # (R)   [string]  Path to the file with generated data that to be used for test asp/ds_ASP_wide.pkl ds_variants_deep_test.pkl
-instances_file: asp/ds_variants_tubes_test.pkl
+instances_file: asp/ds_variants_tubes_train.pkl
 # (0) [string] Save experiments gp path
-experiment_result_path: results/vtubes/test/models-asptrain-large/result_gp_dr_best
+experiment_result_path: results/vtubes/train/models-asptrain-large-simplified/result_gp_dr_best

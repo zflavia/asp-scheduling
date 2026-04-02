@@ -232,12 +232,12 @@ def __fill_dispatch_rule_information(tasks : list[Task], tasks_mapping_ids):
         #slelect task with minimum PT
         min_exectime = min ( (task for task in tasks if task.task_index in ready_tasks),
                     key=lambda task: task.min_execution_times_setup)
-        #print("min_exectime", min_exectime)
+
         candidates = [task for task in tasks if (task.task_index in ready_tasks) and task.min_execution_times_setup == min_exectime.min_execution_times_setup]
-        #print("candidates", candidates)
+        #if more than one candidate task(operation) select random one
         selected_task = random.choice(candidates)
 
-        #select machine that assures min end time
+        #select machine that assures min end time (the task is added when machine becomes available)
         task_machines_end_time = {}
         for index in range(machines_no):
             if selected_task.machines[index] == 1:
@@ -245,10 +245,10 @@ def __fill_dispatch_rule_information(tasks : list[Task], tasks_mapping_ids):
                 task_machines_end_time[index] = makespan
         min_makespan = min(task_machines_end_time.values())
         selected_machines = [k for (k,v) in task_machines_end_time.items() if v==min_makespan ]
-
+        # if more than one candidate machines select random one
         selected_machine_index =  random.choice(selected_machines)
 
-        #update stucture
+        #update structure
         machines_ready_time[selected_machine_index] = task_machines_end_time[selected_machine_index]
         selected_task.dr_end_time = task_machines_end_time[selected_machine_index]
         selected_task.dr_makespan = max(machines_ready_time)
@@ -256,6 +256,7 @@ def __fill_dispatch_rule_information(tasks : list[Task], tasks_mapping_ids):
         ready_tasks.remove(selected_task.task_index)
         scheduled_tasks.add(selected_task.task_index)
 
+        #update information for parent task
         if selected_task.parent_index is not None:
             parent = tasks[selected_task.parent_index]
 

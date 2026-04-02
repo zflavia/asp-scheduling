@@ -5,7 +5,7 @@
 # (R)   [str]     Environment you want to use. The vanilla case is env_gp.
 environment: env_gp
 # (R)   [String]  The algorithm you want to use - This template is for GP
-algorithm: gp-1tree
+algorithm: gp-2trees
 # (R)   [string]  Path to the file with generated data that to be used for training
 instances_file: asp/ds_ASP_train_ga.pkl
 # (O)   [int]  not used, kept for compatibility with others agents
@@ -15,13 +15,13 @@ total_timesteps: 0
 
 # (R)   [string] the name of the file that contains best rule. Alternatively set to <automatic>, then it will be
 #      replaced with the current DayMonthYearHourMinute
-saved_model_name: gp_pair_5t_ASPTrain_optunaParam
+saved_model_name: gp_2t_store_terminals_small
 
 # (O)   [string]  Set a directory where you want to save the agent model
-experiment_save_path: models/gp/models-asptrain-large-gp-1t
+experiment_save_path: models/gp/models_2t_store_terminals_small
 
 # (R)   [int]  Seed for all pseudo random generators (random, numpy, torch)
-seed: [2500, 3000]
+seed: [0, 200, 300, 400, 500, 600]
 
 #--- DEAP parameter ---
 # (O)   [int]     Number of parallel processes for DEAP
@@ -29,22 +29,27 @@ no_parallel_processes: 1
 
 #--- GP parameter ---
 # (O)   [int]     Number of individuals in the population
-gp_population_size: 250
+gp_population_size: 10
 # (O)   [int]   ......
 gp_halloffame_size: 5
 # (0)   [int] Tree depth at initialization
-gp_tree_initial_max_depth: 2
+gp_tree_initial_max_depth: 4
 # (O)   [int]     Maximum depth of a tree
 gp_tree_max_depth: 8
 # (O)   [int]   Stopping criteria: Generations number
-gp_generations_number: 200
+gp_generations_number: 5
 # (O)   [int]   After each 'simplify_frequency' the population individual are simplified
-gp_tree_simplify_frequency: 24
+gp_tree_simplify_frequency: 10
 # (O)   [float]   How often a variation operator (3 mutation types, 2 crossover types)  is selected [0,1]
 gp_population_variation: 0.9
 # (0) [string] Operator selection mechanism
-gp_aos_type: aos
+gp_aos_type: aos-memory
 # (0) [int] Tournament selection size
 gp_tournament_size: 2
+
+#--- Store intermediate information for rule simplification
+used_decision_info_number: 100
+decision_info_minimum_operations: 10
+decision_info_minimum_machines: 4
 
 

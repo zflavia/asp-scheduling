@@ -14,6 +14,8 @@ from numbers import Number
 from typing import Any, Sequence, Union, Dict, Tuple
 
 from deap import gp
+from collections import defaultdict
+
 
 try:
     import sympy
@@ -31,6 +33,42 @@ def _is_const(node) -> bool:
 def _const_val(node) -> Union[int, float]:
     return float(node)
 
+def is_symbol_leaf(x):
+    return not isinstance(x, tuple) and not _is_const(x)
+
+def is0(x):
+        return _is_const(x) and _const_val(x) == 0
+
+def is1(x):
+    return _is_const(x) and _const_val(x) == 1
+
+def isneg(x):
+    return isinstance(x, tuple) and len(x) >= 2 and x[0] == "neg"
+
+def neg_arg(x):
+    return x[1]  # only call if isneg(x)
+
+
+def collect_max_min_args(operation, expr):
+    if isinstance(expr, tuple) and expr[0] == operation:
+        return collect_max_min_args(operation, expr[1]) + collect_max_min_args(operation, expr[2])
+    else:
+        return [expr]
+
+def build_max_min_tree(operation, args):
+    # if len(args) == 1:
+    #     return args[0]
+    # res = args[0]
+    # for arg in args[1:]:
+    #     res = ("max", res, arg)
+    # return res
+    if len(args) == 1:
+        return args[0]
+    mid = len(args) // 2
+    left = build_max_min_tree(operation, args[:mid])
+    right = build_max_min_tree(operation, args[mid:])
+    return (operation, left, right)
+
 
 # ---------------------------------------------------------------------------
 # Simplifier (recursive)
@@ -40,24 +78,13 @@ def _simplify_rec(name: str, args: Sequence[Any]):
 
     ch = list(args)
 
-    # Helpers --------------------------------------------------------------
-    def is0(x):
-        return _is_const(x) and _const_val(x) == 0
-
-    def is1(x):
-        return _is_const(x) and _const_val(x) == 1
-
-    def isneg(x):
-        return isinstance(x, tuple) and len(x) >= 2 and x[0] == "neg"
-
-    def neg_arg(x):
-        return x[1]  # only call if isneg(x)
-
     # Logical / if rules ---------------------------------------------------
     if name == "protected_if" and len(ch) == 3:
         cond, a, b = ch
         if isinstance(cond, bool):
             return a if cond else b
+        if a == b:
+            return a
 
     if name in ("gt", "lt") and len(ch) == 2:
         a, b = ch
@@ -66,6 +93,20 @@ def _simplify_rec(name: str, args: Sequence[Any]):
         if _is_const(a) and _is_const(b):
             av, bv = _const_val(a), _const_val(b)
             return bool(av > bv) if name == "gt" else bool(av < bv)
+
+        # x >= 0, c < 0 (terminal, negative constant)
+        if is_symbol_leaf(a) and _is_const(b) and _const_val(b) <= 0:
+            if name == "lt":
+                return False
+            if name == "gt":
+                return True
+
+        # c < 0, x >= 0 (negative constant, terminal)
+        if _is_const(a) and _const_val(a) <= 0 and not is_symbol_leaf(b):
+            if name == "lt":
+                return True
+            if name == "gt":
+                return False
 
     # Unary neg ------------------------------------------------------------
     if name == "neg" and len(ch) == 1:
@@ -84,11 +125,32 @@ def _simplify_rec(name: str, args: Sequence[Any]):
         if isneg(b): return ("sub", a, neg_arg(b))  # add(x, neg(y)) -> sub(x, y)
         if isneg(a): return ("sub", b, neg_arg(a))  # add(neg(x), y) -> sub(y, x)
 
+        # add (constant, constant)
+        if _is_const(a) and _is_const(b):
+            return  _const_val(a) + _const_val(b)
+
+        # add(c1, add(c2, x)) -> add(c1+c2, x)
+        if _is_const(a) and isinstance(b, tuple) and len(b) == 3 and b[0] == "add":
+            b1, b2 = b[1], b[2]
+            if _is_const(b1):
+                return ("add", _const_val(a) + _const_val(b1), b2)
+            if _is_const(b2):
+                return ("add", _const_val(a) + _const_val(b2), b1)
+
+        # add(add(c1, x), c2) -> add(c1+c2, x)
+        if isinstance(a, tuple) and len(a) == 3 and a[0] == "add" and _is_const(b):
+            a1, a2 = a[1], a[2]
+            if _is_const(a1):
+                return ("add", _const_val(a1) + _const_val(b), a2)
+            if _is_const(a2):
+                return ("add", _const_val(a2) + _const_val(b), a1)
+
     if name == "sub" and len(ch) == 2:
         a, b = ch
         if a == b: return 0.0
         if is0(b): return a
         if is0(a): return ("neg", b)
+
         if _is_const(b) and _const_val(b) < 0:  # sub(x, -c) -> add(x, c)
             return ("add", a, -_const_val(b))
         if isneg(b):  # sub(x, neg(y)) -> add(x, y)
@@ -100,8 +162,80 @@ def _simplify_rec(name: str, args: Sequence[Any]):
         if is1(a): return b
         if is1(b): return a
 
-    if name in ("min", "max") and len(ch) == 2 and ch[0] == ch[1]:
-        return ch[0]
+        # mul(c1, mul(c2, x)) -> mul(c1*c2, x)
+        if _is_const(a) and isinstance(b, tuple) and len(b) == 3 and b[0] == "mul":
+            b1, b2 = b[1], b[2]
+            if _is_const(b1):
+                return ("mul", _const_val(a) * _const_val(b1), b2)
+            if _is_const(b2):
+                return ("mul", _const_val(a) * _const_val(b2), b1)
+
+        # mul(mul(c1, x), c2) -> mul(c1*c2, x)
+        if isinstance(a, tuple) and len(a) == 3 and a[0] == "mul" and _is_const(b):
+            a1, a2 = a[1], a[2]
+            if _is_const(a1):
+                return ("mul", _const_val(a1) * _const_val(b), a2)
+            if _is_const(a2):
+                return ("mul", _const_val(a2) * _const_val(b), a1)
+
+        # mul(c1, protected_div(c2, x)) -> protected_div(c1*c2, x)
+        if _is_const(a) and isinstance(b, tuple) and len(b) == 3 and b[0] == "mul":
+            b1, b2 = b[1], b[2]
+            if _is_const(b1):
+                return ("protected_div", _const_val(a) * _const_val(b1), b2)
+            # mul(c1, protected_div(x, c2)) -> protected_div(x, c1/c2)
+            if _is_const(b2):
+                return ("protected_div", b1, _const_val(a) / _const_val(b2))
+
+    if name == "protected_div" and len(ch) == 2:
+        a, b = ch
+
+        # protected_div(mul(x, c1), c2) -> mul(x, c1/c2)
+        if isinstance(a, tuple) and len(a) == 3 and a[0] == "mul" and _is_const(b):
+            a1, a2 = a[1], a[2]
+
+            # cazul mul(x, c1)
+            if _is_const(a2) and _const_val(b) != 0:
+                return ("mul", a1, _const_val(a2) / _const_val(b))
+
+            # cazul mul(c1, x)
+            if _is_const(a1) and _const_val(b) != 0:
+                return ("mul", a2, _const_val(a1) / _const_val(b))
+
+        # protected_div(protected_div(x, c1), c2) -> protected_div(x, c1*c2)
+        if isinstance(a, tuple) and len(a) == 3 and a[0] == "protected_div" and _is_const(b):
+            a1, a2 = a[1], a[2]
+            if _is_const(a2) and _const_val(a2) != 0 and _const_val(b) != 0:
+                return ("protected_div", a1, _const_val(a2) * _const_val(b))
+
+    if name in ("min", "max"):
+        # max(a,a), min(a,a)
+        if len(ch) == 2 and ch[0] == ch[1]:
+            return ch[0]
+
+        a, b = ch
+        # x >= 0, c < 0 (terminal, <= constant)
+        if is_symbol_leaf(a) and _is_const(b) and _const_val(b) <= 0:
+            if name == "max":
+                return a
+            if name == "min":
+                return b
+
+        # c < 0, x >= 0 (<=0 constant, terminal)
+        if _is_const(a) and _const_val(a) <= 0 and is_symbol_leaf(b):
+            if name == "max":
+                return b
+            if name == "min":
+                return a
+
+        # reduce expressions like max(max(max(...)))
+        ### flatten
+        args = collect_max_min_args(name, a) + collect_max_min_args(name, b)
+        ### eliminate duplicates
+        unique_args = list(dict.fromkeys(args))
+        ### if a reduction
+        if len(unique_args) != len(args):
+            return build_max_min_tree(name, unique_args)
 
     # Constant folding -----------------------------------------------------
     if all(_is_const(x) for x in ch):
